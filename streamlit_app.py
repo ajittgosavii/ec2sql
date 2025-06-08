@@ -1,21 +1,27 @@
 import streamlit as st
 import pandas as pd
 from io import BytesIO
-from docx import Document
-from docx.shared import Pt, Inches
-from docx.enum.text import WD_ALIGN_PARAGRAPH
-from ec2_sql_sizing import EC2DatabaseSizingCalculator
+import io
+from datetime import datetime
 import os
 import time
 from dotenv import load_dotenv
 
 # Import reportlab components for PDF generation
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
-from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
+try:
+    from reportlab.lib.pagesizes import letter
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT
+    REPORTLAB_AVAILABLE = True
+except ImportError:
+    REPORTLAB_AVAILABLE = False
+    st.warning("⚠️ ReportLab not installed. PDF generation will be disabled. Install with: pip install reportlab")
+
+# Import the calculator class
+from ec2_sql_sizing import EC2DatabaseSizingCalculator
 
 # Load environment variables from .env only if needed
 if not os.getenv("AWS_ACCESS_KEY_ID") or not os.getenv("AWS_SECRET_ACCESS_KEY"):
@@ -25,7 +31,7 @@ if not os.getenv("AWS_ACCESS_KEY_ID") or not os.getenv("AWS_SECRET_ACCESS_KEY"):
 st.set_page_config(
     page_title="Enterprise AWS EC2 SQL Sizing", 
     layout="wide",
-    page_icon=":bar_chart:"
+    page_icon="📊"
 )
 
 # Add custom CSS for professional styling
@@ -50,9 +56,9 @@ st.markdown("""
         background-color: #4CAF50;
         color: white;
         font-weight: bold;
-        border-radius: 8px; /* Slightly more rounded */
+        border-radius: 8px;
         border: none;
-        padding: 0.8em 1.5em; /* More padding */
+        padding: 0.8em 1.5em;
         transition: all 0.2s ease;
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
@@ -65,9 +71,9 @@ st.markdown("""
         background-color: #2196F3;
         color: white;
         font-weight: bold;
-        border-radius: 8px; /* Slightly more rounded */
+        border-radius: 8px;
         border: none;
-        padding: 0.8em 1.5em; /* More padding */
+        padding: 0.8em 1.5em;
         transition: all 0.2s ease;
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
@@ -82,37 +88,17 @@ st.markdown("""
         border-radius: 8px;
         font-size: 0.95rem;
     }
-    .stAlert.info {
-        background-color: #e0f7fa;
-        color: #00796b;
-        border-left: 5px solid #00bcd4;
-    }
-    .stAlert.success {
-        background-color: #e8f5e9;
-        color: #2e7d32;
-        border-left: 5px solid #4caf50;
-    }
-    .stAlert.warning {
-        background-color: #fffde7;
-        color: #ff8f00;
-        border-left: 5px solid #ffc107;
-    }
-    .stAlert.error {
-        background-color: #ffebee;
-        color: #c62828;
-        border-left: 5px solid #f44336;
-    }
 
-    /* Metric Boxes (new styling) */
+    /* Metric Boxes */
     .metric-box {
         border: 1px solid #e0e0e0;
-        border-radius: 8px; /* Rounded corners */
+        border-radius: 8px;
         padding: 15px;
         margin-bottom: 15px;
         background-color: #ffffff;
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         transition: transform 0.2s ease, box-shadow 0.2s ease;
-        height: 100%; /* Ensure consistent height in columns */
+        height: 100%;
         display: flex;
         flex-direction: column;
         justify-content: center;
@@ -128,9 +114,9 @@ st.markdown("""
         font-size: 1.1em;
     }
     .metric-value {
-        font-size: 1.5em; /* Larger value */
+        font-size: 1.5em;
         font-weight: 700;
-        color: #3f51b5; /* A shade of blue */
+        color: #3f51b5;
         margin-top: 5px;
     }
 
@@ -140,17 +126,6 @@ st.markdown("""
         border-radius: 8px;
         box-shadow: 0 2px 4px rgba(0,0,0,0.03);
         margin-bottom: 10px;
-    }
-    .stExpander > div > div > button {
-        background-color: #f8f9fa; /* Light background for expander header */
-        border-bottom: 1px solid #e0e0e0;
-        border-radius: 8px 8px 0 0;
-        font-weight: 600;
-        color: #34495e;
-        padding: 1em;
-    }
-    .stExpander > div > div > button:hover {
-        background-color: #f0f2f5;
     }
 
     /* Input fields */
@@ -193,7 +168,7 @@ st.markdown("""
         transition: all 0.2s ease;
     }
     .stTabs [aria-selected="true"] {
-        background-color: #3f51b5; /* Active tab color */
+        background-color: #3f51b5;
         color: white;
         border-color: #3f51b5;
         box-shadow: 0 2px 8px rgba(63, 81, 181, 0.3);
@@ -201,21 +176,14 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# App header
-st.title("AWS EC2 SQL Server Sizing Calculator")
-st.markdown("""
-This enterprise-grade tool provides EC2 sizing recommendations for SQL Server workloads based on your on-premise infrastructure metrics.
-Recommendations include development, QA, staging, and production environments with detailed cost estimates.
-""")
-
-# Initialize calculator (from ec2_sql_sizing.py)
-calculator = EC2DatabaseSizingCalculator()
-
 # --- PDF Report Generator Class ---
 class PDFReportGenerator:
     """Generates PDF reports from analysis results."""
 
     def __init__(self):
+        if not REPORTLAB_AVAILABLE:
+            raise ImportError("ReportLab library not found. Please install with: pip install reportlab")
+        
         self.styles = getSampleStyleSheet()
         self.styles.add(ParagraphStyle(name='H1_Custom', fontSize=24, leading=28, alignment=TA_CENTER, spaceAfter=20, fontName='Helvetica-Bold'))
         self.styles.add(ParagraphStyle(name='H2_Custom', fontSize=18, leading=22, spaceBefore=10, spaceAfter=10, fontName='Helvetica-Bold'))
@@ -224,7 +192,6 @@ class PDFReportGenerator:
         self.styles.add(ParagraphStyle(name='Bullet_Custom', fontSize=10, leading=12, leftIndent=20, spaceAfter=6, bulletText='•', alignment=TA_LEFT))
         self.styles.add(ParagraphStyle(name='Table_Header', fontSize=10, leading=12, alignment=TA_CENTER, fontName='Helvetica-Bold', textColor=colors.whitesmoke))
         self.styles.add(ParagraphStyle(name='Table_Cell', fontSize=10, leading=12, alignment=TA_CENTER))
-
 
     def generate_report(self, all_results: list | dict):
         """Generates a PDF report based on the analysis results."""
@@ -386,10 +353,14 @@ def initialize_session_state():
     """Initialize all session state variables."""
     if 'calculator' not in st.session_state:
         st.session_state.calculator = EC2DatabaseSizingCalculator()
-    if 'pdf_generator' not in st.session_state:
-        st.session_state.pdf_generator = PDFReportGenerator()
+    if 'pdf_generator' not in st.session_state and REPORTLAB_AVAILABLE:
+        try:
+            st.session_state.pdf_generator = PDFReportGenerator()
+        except Exception as e:
+            st.session_state.pdf_generator = None
+            st.warning(f"PDF generator initialization failed: {str(e)}")
     if 'last_analysis_results' not in st.session_state:
-        st.session_state.last_analysis_results = None # To store results for reports
+        st.session_state.last_analysis_results = None
 
 # --- Helper function to parse uploaded EC2 sizing files ---
 def parse_uploaded_file_ec2(uploaded_file):
@@ -404,7 +375,6 @@ def parse_uploaded_file_ec2(uploaded_file):
             df = pd.read_excel(uploaded_file)
         
         # Define expected columns and their types/defaults
-        # Using a list of tuples for ordered columns for clearer template generation
         expected_columns_info = [
             ('db_name', str, 'Database Name', 'DB_1'),
             ('region', str, 'AWS Region', 'us-east-1'),
@@ -421,11 +391,11 @@ def parse_uploaded_file_ec2(uploaded_file):
             ('prefer_amd', bool, 'Prefer AMD (True/False)', True)
         ]
 
-        # Create a mapping for user-friendly names to internal keys and vice-versa for template
+        # Create a mapping for user-friendly names to internal keys
         column_mapping_user_to_internal = {info[2]: info[0] for info in expected_columns_info}
         internal_to_user_mapping = {info[0]: info[2] for info in expected_columns_info}
         
-        # Rename columns to internal keys for processing, ignoring extra columns
+        # Rename columns to internal keys for processing
         df_processed = pd.DataFrame()
         found_columns = []
         for user_col_name in df.columns:
@@ -434,7 +404,7 @@ def parse_uploaded_file_ec2(uploaded_file):
                 df_processed[internal_name] = df[user_col_name]
                 found_columns.append(internal_name)
         
-        # Check for mandatory columns (e.g., db_name, region, on_prem_cores, etc. - all are effectively mandatory for calculation)
+        # Check for mandatory columns
         required_internal_columns = [info[0] for info in expected_columns_info]
         missing_columns = [col for col in required_internal_columns if col not in found_columns]
         if missing_columns:
@@ -450,15 +420,13 @@ def parse_uploaded_file_ec2(uploaded_file):
             for col_key, col_type, _, default_value in expected_columns_info:
                 try:
                     raw_value = row.get(col_key)
-                    if pd.isna(raw_value) or raw_value is None: # Handle NaN from pandas for empty cells
-                        # Use default value if missing, unless it's a critical field
+                    if pd.isna(raw_value) or raw_value is None:
                         if col_key in ['db_name', 'region', 'on_prem_cores', 'on_prem_ram_gb', 'storage_current_gb']:
                              row_errors.append(f"'{internal_to_user_mapping[col_key]}' cannot be empty.")
                         else:
                             row_data[col_key] = default_value
                     else:
                         if col_type == bool:
-                            # Convert string "True"/"False" to boolean
                             if isinstance(raw_value, str):
                                 row_data[col_key] = raw_value.strip().lower() == 'true'
                             else:
@@ -473,9 +441,8 @@ def parse_uploaded_file_ec2(uploaded_file):
                     row_errors.append(f"Invalid data type for '{internal_to_user_mapping[col_key]}': '{raw_value}'. Expected {col_type.__name__}.")
             
             if row_errors:
-                errors.append(f"Row {index + 2} (Excel row): " + "; ".join(row_errors)) # +2 for header and 0-index
+                errors.append(f"Row {index + 2} (Excel row): " + "; ".join(row_errors))
             else:
-                # Assign a default db_name if not provided but row is otherwise valid
                 if 'db_name' not in row_data or not row_data['db_name']:
                     row_data['db_name'] = f"Database {index + 1}"
                 valid_inputs.append(row_data)
@@ -489,12 +456,10 @@ def parse_uploaded_file_ec2(uploaded_file):
 def export_full_report_excel(all_results):
     """
     Exports comprehensive Excel report for EC2 SQL Sizing results.
-    Handles both single and bulk analysis results.
     """
     try:
         output = io.BytesIO()
         
-        # Ensure all_results is a list for consistent processing
         if isinstance(all_results, dict):
             results_to_process = [all_results]
         else:
@@ -519,11 +484,10 @@ def export_full_report_excel(all_results):
                     "PROD Storage (GB)": prod_rec.get('storage_GB', 'N/A'),
                     "PROD Monthly Cost": prod_rec.get('total_cost', 0),
                     "PROD Annual Cost": prod_rec.get('total_cost', 0) * 12,
-                    "Optimization Score (%)": prod_rec.get('optimization_score', 'N/A') # Assuming this is part of results
+                    "Optimization Score (%)": prod_rec.get('optimization_score', 'N/A')
                 })
             
             summary_df = pd.DataFrame(summary_data)
-            # Format currency columns before writing to Excel
             summary_df['PROD Monthly Cost'] = summary_df['PROD Monthly Cost'].apply(lambda x: f"${x:,.2f}")
             summary_df['PROD Annual Cost'] = summary_df['PROD Annual Cost'].apply(lambda x: f"${x:,.2f}")
 
@@ -532,14 +496,11 @@ def export_full_report_excel(all_results):
             # Detailed breakdown sheets for each database
             for i, result in enumerate(results_to_process):
                 db_name = result['inputs'].get('db_name', f'Database_{i+1}')
-                # Excel sheet name limit is 31 characters
                 sheet_name = db_name[:31].replace('[', '').replace(']', '').replace(':', '').replace('*', '').replace('?', '').replace('/', '').replace('\\', '')
                 
                 detail_rows = []
-                # Add input parameters
                 detail_rows.append({"Category": "--- Input Parameters ---", "Value": ""})
                 for k, v in result['inputs'].items():
-                    # Format growth rate for readability
                     if k == 'storage_growth_rate':
                         detail_rows.append({"Category": k.replace('_', ' ').title(), "Value": f"{v*100:.1f}%"})
                     elif isinstance(v, (int, float)) and k not in ['on_prem_cores', 'on_prem_ram_gb', 'peak_cpu_percent', 'peak_ram_percent', 'peak_iops', 'peak_throughput_mbps', 'years']:
@@ -549,7 +510,6 @@ def export_full_report_excel(all_results):
                 
                 detail_rows.append({"Category": "--- Sizing Recommendations ---", "Value": ""})
                 
-                # Add recommendations for each environment
                 for env, rec in result['recommendations'].items():
                     detail_rows.append({"Category": f"Environment: {env.upper()}", "Value": ""})
                     detail_rows.append({"Category": "  Instance Type", "Value": rec.get('instance_type', 'N/A')})
@@ -563,7 +523,7 @@ def export_full_report_excel(all_results):
                     detail_rows.append({"Category": "  EBS Cost (Monthly)", "Value": f"${rec.get('ebs_cost', 0):,.2f}"})
                     detail_rows.append({"Category": "  Total Monthly Cost", "Value": f"${rec.get('total_cost', 0):,.2f}"})
                     detail_rows.append({"Category": "  Optimization Score", "Value": f"{rec.get('optimization_score', 'N/A')}%"})
-                    detail_rows.append({"Category": "", "Value": ""}) # Spacer
+                    detail_rows.append({"Category": "", "Value": ""})
 
                 detail_df = pd.DataFrame(detail_rows)
                 detail_df.to_excel(writer, sheet_name=sheet_name, index=False)
@@ -573,19 +533,17 @@ def export_full_report_excel(all_results):
         
     except Exception as e:
         st.error(f"Error generating Excel report: {str(e)}")
-        raise # Re-raise to ensure Streamlit catches it if necessary
+        raise
 
-# --- Main App Functions (adapted for tabs) ---
+# --- Main App Functions ---
 
 def render_manual_config_tab(calculator_instance: EC2DatabaseSizingCalculator):
     """Renders the manual configuration tab."""
     st.subheader("Manual EC2 Sizing")
     st.markdown("Enter your current on-premise SQL Server metrics for a single database:")
 
-    # Retrieve current inputs from calculator for display
     inputs = calculator_instance.inputs
 
-    # Input sections in expanders
     with st.expander("Compute Resources", expanded=True):
         col1, col2 = st.columns(2)
         with col1:
@@ -614,15 +572,14 @@ def render_manual_config_tab(calculator_instance: EC2DatabaseSizingCalculator):
                                    help="Number of years to plan for future growth", key="manual_years")
         inputs["workload_profile"] = st.selectbox("Workload Profile",
                                                   ["general", "memory", "compute"], index=["general", "memory", "compute"].index(inputs["workload_profile"]),
-                                                  help="""\n**Workload Type Guidelines** \n- General: Balanced workloads like mixed OLTP and reporting  \n- Memory: Data warehouses, analytics, in-memory DBs  \n- Compute: OLTP, heavy transaction processing, CPU-bound jobs\n""", key="manual_workload")
+                                                  help="General: Balanced workloads, Memory: Data warehouses/analytics, Compute: OLTP/CPU-bound", key="manual_workload")
         inputs["prefer_amd"] = st.checkbox("Include AMD Instances (Cost Optimized)", value=inputs["prefer_amd"],
                                           help="AMD instances are typically 10-20% cheaper than comparable Intel instances", key="manual_amd")
 
-    # Update calculator inputs after user interaction
     calculator_instance.inputs.update(inputs)
 
     if st.button("Generate Recommendations", key="generate_manual_btn"):
-        generate_and_display_recommendations(calculator_instance, {"db_name": "Manual Input", **inputs}) # Pass inputs including db_name
+        generate_and_display_recommendations(calculator_instance, {"db_name": "Manual Input", **inputs})
 
 def render_bulk_upload_tab(calculator_instance: EC2DatabaseSizingCalculator):
     """Renders the bulk upload tab."""
@@ -637,19 +594,19 @@ def render_bulk_upload_tab(calculator_instance: EC2DatabaseSizingCalculator):
 
     if st.button("⬇️ Download Template (CSV)", key="download_template_btn_bulk"):
         template_data = {
-            'db_name': ['ProdDB_1', 'StagingDB_2', 'DevDB_3'],
-            'region': ['us-east-1', 'us-west-2', 'us-east-1'],
-            'on_prem_cores': [16, 8, 4],
-            'peak_cpu_percent': [70, 60, 45],
-            'on_prem_ram_gb': [64, 32, 16],
-            'peak_ram_percent': [80, 70, 55],
-            'storage_current_gb': [1000, 500, 200],
-            'storage_growth_rate': [0.15, 0.10, 0.05],
-            'peak_iops': [10000, 5000, 2000],
-            'peak_throughput_mbps': [500, 250, 100],
-            'years': [3, 2, 1],
-            'workload_profile': ['general', 'memory', 'compute'],
-            'prefer_amd': [True, False, True]
+            'Database Name': ['ProdDB_1', 'StagingDB_2', 'DevDB_3'],
+            'AWS Region': ['us-east-1', 'us-west-2', 'us-east-1'],
+            'On-Prem CPU Cores': [16, 8, 4],
+            'Peak CPU Utilization (%)': [70, 60, 45],
+            'On-Prem RAM (GB)': [64, 32, 16],
+            'Peak RAM Utilization (%)': [80, 70, 55],
+            'Current Storage (GB)': [1000, 500, 200],
+            'Annual Growth Rate (e.g., 0.15)': [0.15, 0.10, 0.05],
+            'Peak IOPS': [10000, 5000, 2000],
+            'Peak Throughput (MB/s)': [500, 250, 100],
+            'Growth Projection Years': [3, 2, 1],
+            'Workload Profile (general, memory, compute)': ['general', 'memory', 'compute'],
+            'Prefer AMD (True/False)': [True, False, True]
         }
         template_df = pd.DataFrame(template_data)
         csv_buffer = BytesIO()
@@ -700,23 +657,21 @@ def analyze_bulk_workload_ec2(valid_inputs: list[dict], calculator_instance: EC2
     progress_bar = st.progress(0)
 
     try:
-        calculator_instance.fetch_current_prices(force_refresh=True) # Ensure fresh prices for bulk
+        calculator_instance.fetch_current_prices(force_refresh=True)
 
         for i, inputs in enumerate(valid_inputs):
             db_name = inputs.get('db_name', f"Database {i+1}")
             progress_text.text(f"Analyzing {db_name} ({i+1}/{len(valid_inputs)})...")
             progress_bar.progress((i + 1) / len(valid_inputs))
 
-            # Update calculator's internal inputs for the current database
             calculator_instance.inputs.update(inputs)
-            
             recommendations = calculator_instance.generate_all_recommendations()
             
             all_results.append({
                 'inputs': inputs,
                 'recommendations': recommendations
             })
-            time.sleep(0.1) # Small delay for UI update
+            time.sleep(0.1)
 
         st.session_state.last_analysis_results = all_results
         st.success("✅ Bulk analysis complete!")
@@ -724,7 +679,7 @@ def analyze_bulk_workload_ec2(valid_inputs: list[dict], calculator_instance: EC2
 
     except Exception as e:
         st.error(f"An error occurred during bulk analysis: {e}")
-        st.exception(e) # Display full traceback
+        st.exception(e)
     finally:
         progress_text.empty()
         progress_bar.empty()
@@ -746,10 +701,9 @@ def display_bulk_results_ec2(all_results: list[dict]):
         instance_type = prod_rec.get('instance_type', 'N/A')
         total_cost = prod_rec.get('total_cost', 0)
         
-        # Estimate on-premise cost for comparison (simplified estimate)
         on_prem_cores = inputs.get('on_prem_cores', 0)
         on_prem_ram_gb = inputs.get('on_prem_ram_gb', 0)
-        estimated_on_prem_monthly_cost = (on_prem_cores * 150) + (on_prem_ram_gb * 10) # rough estimate
+        estimated_on_prem_monthly_cost = (on_prem_cores * 150) + (on_prem_ram_gb * 10)
         
         total_monthly_cost += total_cost
         total_on_prem_cost_estimate += estimated_on_prem_monthly_cost
@@ -799,26 +753,18 @@ def display_bulk_results_ec2(all_results: list[dict]):
     st.write("---")
     st.info("Go to the 'Reports & Export' tab to download detailed reports.")
 
-
 def generate_and_display_recommendations(calculator_instance: EC2DatabaseSizingCalculator, inputs: dict):
     """Generates and displays recommendations for a single set of inputs."""
     start_time = time.time()
     
     with st.spinner("Calculating EC2 sizing recommendations..."):
         try:
-            # Update calculator inputs (important for manual input if not already done by sidebar)
             calculator_instance.inputs.update(inputs) 
-            
-            # Fetch current prices from AWS
             calculator_instance.fetch_current_prices()
-            
-            # Generate recommendations
             results = calculator_instance.generate_all_recommendations()
             
-            # Store single result as a dict for reporting
             st.session_state.last_analysis_results = {'inputs': inputs, 'recommendations': results}
 
-            # Create DataFrame for display
             df = pd.DataFrame.from_dict(results, orient='index').reset_index()
             df.rename(columns={"index": "Environment"}, inplace=True)
             
@@ -857,7 +803,8 @@ def generate_and_display_recommendations(calculator_instance: EC2DatabaseSizingC
             formatted_df = df.copy()
             cost_columns = ["instance_cost", "ebs_cost", "total_cost"]
             for col in cost_columns:
-                formatted_df[col] = formatted_df[col].apply(lambda x: f"${x:,.2f}")
+                if col in formatted_df.columns:
+                    formatted_df[col] = formatted_df[col].apply(lambda x: f"${x:,.2f}")
             
             # Display table
             st.dataframe(
@@ -870,15 +817,14 @@ def generate_and_display_recommendations(calculator_instance: EC2DatabaseSizingC
             
             # Show detailed view
             with st.expander("Detailed View"):
-                st.dataframe(
-                    formatted_df[[
-                        "Environment", "instance_type", "vCPUs", "RAM_GB", 
-                        "storage_GB", "ebs_type", "iops_required", 
-                        "throughput_required", "family", "processor", 
-                        "instance_cost", "ebs_cost", "total_cost"
-                    ]],
-                    use_container_width=True
-                )
+                detail_columns = [
+                    "Environment", "instance_type", "vCPUs", "RAM_GB", 
+                    "storage_GB", "ebs_type", "iops_required", 
+                    "throughput_required", "family", "processor", 
+                    "instance_cost", "ebs_cost", "total_cost"
+                ]
+                available_columns = [col for col in detail_columns if col in formatted_df.columns]
+                st.dataframe(formatted_df[available_columns], use_container_width=True)
             
             # Execution time
             exec_time = time.time() - start_time
@@ -893,8 +839,7 @@ def generate_and_display_recommendations(calculator_instance: EC2DatabaseSizingC
 
         except Exception as e:
             st.error(f"Error generating recommendations: {str(e)}")
-            st.exception(e) # Display full traceback
-
+            st.exception(e)
 
 def render_reports_tab():
     """Renders the reports and export tab."""
@@ -936,50 +881,42 @@ def render_reports_tab():
             <p style="font-size:0.9em; color:#555;">Get a professional PDF summary of your database sizing analysis, perfect for executive presentations.</p>
         </div>
         """, unsafe_allow_html=True)
-        if st.button("⬇️ Download Executive PDF Report", use_container_width=True, key="download_pdf_report_btn"):
-            if st.session_state.last_analysis_results:
-                pdf_status_message = st.empty()
-                try:
-                    pdf_status_message.info("Generating PDF report... This may take a moment.")
+        
+        if st.session_state.last_analysis_results and REPORTLAB_AVAILABLE and st.session_state.get('pdf_generator'):
+            try:
+                with st.spinner("🔄 Preparing PDF report..."):
                     pdf_data = st.session_state.pdf_generator.generate_report(st.session_state.last_analysis_results)
-                    
-                    if pdf_data:
-                        pdf_status_message.success(f"PDF generated successfully (size: {len(pdf_data)} bytes).")
-                        st.download_button(
-                            label="Click to Download PDF",
-                            data=pdf_data,
-                            file_name=f"ec2_sizing_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
-                            mime="application/pdf",
-                            use_container_width=True,
-                            key="actual_download_pdf_btn"
-                        )
-                    else:
-                        pdf_status_message.error("PDF generation resulted in empty data.")
-                        st.error("PDF Export failed: Generated PDF was empty or invalid.")
-
-                except Exception as e:
-                    st.error(f"Failed to generate PDF report: {e}")
-                    st.exception(e) # Display full traceback
-                finally:
-                    # Clear status message after a brief delay
-                    time.sleep(2)
-                    pdf_status_message.empty()
-            else:
+                
+                st.download_button(
+                    label="📄 Download Executive PDF Report",
+                    data=pdf_data,
+                    file_name=f"ec2_sizing_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True,
+                    key="actual_download_pdf_btn",
+                    help="Click to download the comprehensive PDF report"
+                )
+            except Exception as e:
+                st.error(f"❌ PDF generation failed: {str(e)}")
+        else:
+            if not st.session_state.last_analysis_results:
                 st.info("💡 Please run a 'Manual Configuration' or 'Bulk Upload' analysis first to generate results.")
+            elif not REPORTLAB_AVAILABLE:
+                st.error("❌ PDF generation unavailable: ReportLab not installed")
+                st.info("💡 Install ReportLab: pip install reportlab")
+            else:
+                st.error("❌ PDF generator initialization failed")
     
     st.markdown("---")
     st.markdown("#### Quick Export of Raw Data")
     
-    # Raw data export (CSV of summary results)
+    # Raw data export
     if st.session_state.last_analysis_results:
-        # Determine if it's a single result or bulk results
         if isinstance(st.session_state.last_analysis_results, dict):
-            # If single, convert to list for consistent DataFrame creation
             results_for_csv = [st.session_state.last_analysis_results]
         else:
             results_for_csv = st.session_state.last_analysis_results
 
-        # Prepare summary data for CSV
         summary_csv_data = []
         for result in results_for_csv:
             inputs = result.get('inputs', {})
@@ -1003,15 +940,20 @@ def render_reports_tab():
     else:
         st.info("Run an analysis to enable raw data export.")
 
-
 # --- Main Application Layout ---
 def main():
+    # App header
+    st.title("AWS EC2 SQL Server Sizing Calculator")
+    st.markdown("""
+    This enterprise-grade tool provides EC2 sizing recommendations for SQL Server workloads based on your on-premise infrastructure metrics.
+    Recommendations include development, QA, staging, and production environments with detailed cost estimates.
+    """)
+
     initialize_session_state()
     
     # Sidebar Configuration
     with st.sidebar:
         st.header("AWS Configuration")
-        # Region selection remains in sidebar, applied to calculator.inputs
         region = st.selectbox(
             "AWS Region", 
             ["us-east-1", "us-west-1", "us-west-2"],
@@ -1019,22 +961,21 @@ def main():
             help="Select the AWS region for pricing and deployment",
             key="sidebar_region"
         )
-        st.session_state.calculator.inputs['region'] = region # Update calculator's region directly
+        st.session_state.calculator.inputs['region'] = region
 
         st.markdown("---")
         st.markdown("""
         **Enterprise Features:**
         - Multi-region cost estimates
-        - Environment-specific sizing (DEV, QA, SQA, PROD)
+        - Environment-specific sizing (DEV, QA, STAGING, PROD)
         - AMD instance optimization for cost savings
         - Storage growth projections
         - I/O requirements calculation
-        - Professional reporting (CSV, DOCX, PDF)
+        - Professional reporting (Excel, PDF)
         - Pricing validation and caching
         """)
         st.markdown("---")
         st.info("Input parameters in 'Manual Configuration' tab or via 'Bulk Upload'.")
-
 
     # Main Tabs
     tab1, tab2, tab3 = st.tabs(["📊 Manual Configuration", "📁 Bulk Upload", "📋 Reports & Export"])
@@ -1048,17 +989,16 @@ def main():
     with tab3:
         render_reports_tab()
 
-# --- Footer ---
-st.markdown("---")
-st.markdown("""
-<div style="text-align: center; color: #7f8c8d; font-size: 0.9em;">
-    AWS EC2 SQL Server Sizing Calculator v1.0
-    <br>
-    Powered by Streamlit, pandas, and ReportLab.
-</div>
-""", unsafe_allow_html=True)
+    # Footer
+    st.markdown("---")
+    st.markdown("""
+    <div style="text-align: center; color: #7f8c8d; font-size: 0.9em;">
+        AWS EC2 SQL Server Sizing Calculator v2.0
+        <br>
+        Powered by Streamlit, pandas, and ReportLab.
+    </div>
+    """, unsafe_allow_html=True)
 
 # Run the application
 if __name__ == "__main__":
     main()
-
