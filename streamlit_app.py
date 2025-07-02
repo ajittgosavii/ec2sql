@@ -889,13 +889,46 @@ class CloudPricingOptimizer:
                             recommendation = self.generate_rule_based_recommendation()
                         
                         st.session_state.current_recommendation = recommendation
-                        self.display_ai_recommendations(recommendation)
+                        st.success("✅ Analysis complete!")
                 else:
                     st.error("❌ Please fetch pricing data first!")
         
         # Display cached recommendation if available
         if hasattr(st.session_state, 'current_recommendation'):
             self.display_ai_recommendations(st.session_state.current_recommendation)
+        else:
+            # Show helpful message when no analysis has been run
+            st.info("👆 Click 'Get AI Analysis' above to generate optimization recommendations based on your configuration.")
+            
+            # Show current configuration summary
+            if hasattr(st.session_state, 'config'):
+                config = st.session_state.config
+                st.markdown("**Current Configuration Summary:**")
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    st.markdown(f"""
+                    **System Requirements:**
+                    - CPU: {config.get('cpu_cores', 'N/A')} cores
+                    - RAM: {config.get('ram_gb', 'N/A')} GB
+                    - Storage: {config.get('storage_gb', 'N/A')} GB
+                    """)
+                
+                with col2:
+                    st.markdown(f"""
+                    **Performance:**
+                    - Peak CPU: {config.get('peak_cpu', 'N/A')}%
+                    - Peak RAM: {config.get('peak_ram', 'N/A')}%
+                    - Type: {config.get('workload_type', 'N/A')}
+                    """)
+                
+                with col3:
+                    st.markdown(f"""
+                    **SQL Server:**
+                    - Edition: {config.get('sql_edition', 'N/A')}
+                    - Licensing: {config.get('licensing_model', 'N/A')}
+                    - Region: {config.get('region', 'N/A')}
+                    """)
     
     def generate_rule_based_recommendation(self) -> AIRecommendation:
         """Generate intelligent rule-based recommendation when AI is unavailable"""
