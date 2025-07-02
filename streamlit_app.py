@@ -15,6 +15,7 @@ import logging
 from dataclasses import dataclass
 from functools import lru_cache
 from io import BytesIO
+import numpy as np
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -613,29 +614,29 @@ class CloudPricingOptimizer:
             region = st.selectbox("AWS Region", [
                 "us-east-1", "us-west-1", "us-west-2", "us-east-2",
                 "eu-west-1", "eu-central-1", "ap-southeast-1", "ap-northeast-1"
-            ], index=0)
+            ], index=0, key="region_selector")
             
             workload_type = st.selectbox("Workload Type", [
                 "Production", "Staging", "Development", "Testing"
-            ])
+            ], key="workload_type_selector")
             
             st.markdown("**System Requirements**")
-            cpu_cores = st.slider("CPU Cores", 2, 64, 8)
-            ram_gb = st.slider("RAM (GB)", 4, 512, 32)
-            storage_gb = st.slider("Storage (GB)", 100, 10000, 500)
+            cpu_cores = st.slider("CPU Cores", 2, 64, 8, key="cpu_cores_slider")
+            ram_gb = st.slider("RAM (GB)", 4, 512, 32, key="ram_gb_slider")
+            storage_gb = st.slider("Storage (GB)", 100, 10000, 500, key="storage_gb_slider")
             
             st.markdown("**Performance Metrics**")
-            peak_cpu = st.slider("Peak CPU Utilization (%)", 20, 100, 70)
-            peak_ram = st.slider("Peak RAM Utilization (%)", 20, 100, 80)
+            peak_cpu = st.slider("Peak CPU Utilization (%)", 20, 100, 70, key="peak_cpu_slider")
+            peak_ram = st.slider("Peak RAM Utilization (%)", 20, 100, 80, key="peak_ram_slider")
             
             st.markdown("**SQL Server Configuration**")
             sql_edition = st.selectbox("SQL Server Edition", [
                 "Standard", "Enterprise", "Developer"
-            ])
+            ], key="sql_edition_selector")
             
             licensing_model = st.selectbox("Licensing Model", [
                 "License Included", "BYOL (Bring Your Own License)"
-            ])
+            ], key="licensing_model_selector")
             
             # Store configuration in session state
             st.session_state.config = {
@@ -663,7 +664,7 @@ class CloudPricingOptimizer:
                 st.write("Get the latest AWS EC2 pricing for SQL Server instances based on your configuration.")
         
         with col2:
-            if st.button("🔄 Fetch Latest Prices", type="primary", use_container_width=True):
+            if st.button("🔄 Fetch Latest Prices", type="primary", use_container_width=True, key="fetch_prices_btn"):
                 with st.spinner("Fetching pricing data..."):
                     pricing_data = self.fetch_pricing_data()
                     
@@ -858,7 +859,7 @@ class CloudPricingOptimizer:
             font_color='#343a40',
             showlegend=False
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, key="pricing_comparison_chart")
     
     def render_ai_recommendations(self):
         """Enhanced AI recommendations with better fallback"""
@@ -873,7 +874,7 @@ class CloudPricingOptimizer:
                 st.write("📋 Get intelligent optimization recommendations based on industry best practices and cost optimization principles.")
         
         with col2:
-            if st.button("🧠 Get AI Analysis", type="primary", use_container_width=True):
+            if st.button("🧠 Get AI Analysis", type="primary", use_container_width=True, key="ai_analysis_btn"):
                 if hasattr(st.session_state, 'latest_pricing'):
                     with st.spinner("Analyzing with AI..."):
                         if self.claude_ai.api_key:
@@ -1005,7 +1006,7 @@ class CloudPricingOptimizer:
                 }
             ))
             fig.update_layout(height=350, font_color='#343a40', margin=dict(l=20, r=20, t=20, b=20))
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key="confidence_gauge_chart")
             
             # Cost impact indicator
             impact_colors = {
@@ -1091,15 +1092,17 @@ class CloudPricingOptimizer:
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            migration_cost = st.number_input("Migration & Setup Cost ($)", value=25000, step=1000, help="One-time cost for migration and setup")
+            migration_cost = st.number_input("Migration & Setup Cost ($)", value=25000, step=1000, 
+                                           help="One-time cost for migration and setup", key="migration_cost_input")
             
         with col2:
-            operational_overhead = st.number_input("Monthly Operational Overhead ($)", value=200, step=50, help="Additional monthly operational costs")
+            operational_overhead = st.number_input("Monthly Operational Overhead ($)", value=200, step=50, 
+                                                 help="Additional monthly operational costs", key="operational_overhead_input")
             
         with col3:
             reservation_discount = st.selectbox("Reserved Instance Discount", 
                                               ["No Reservation (0%)", "1-Year Term (40%)", "3-Year Term (60%)"],
-                                              help="Additional savings from Reserved Instances")
+                                              help="Additional savings from Reserved Instances", key="reservation_discount_selector")
         
         # Calculate reservation discount
         discount_map = {"No Reservation (0%)": 0, "1-Year Term (40%)": 0.4, "3-Year Term (60%)": 0.6}
@@ -1152,7 +1155,7 @@ class CloudPricingOptimizer:
                          annotation_text="Break-even point")
             
             fig.update_layout(plot_bgcolor='white', font_color='#343a40')
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key="roi_timeline_chart")
             
         else:
             st.warning("⚠️ Current configuration may not provide positive ROI with the selected parameters.")
@@ -1189,17 +1192,27 @@ class CloudPricingOptimizer:
         dates = pd.date_range(start='2024-01-01', end='2025-01-01', freq='M')
         
         # More realistic pricing trends with seasonality
-        base_trend = pd.DataFrame({
-            'Date': dates,
-            'm5.xlarge': [190 + i*1.5 + 10*np.sin(i*0.5) + np.random.normal(0, 5) for i in range(len(dates))],
-            'r5.xlarge': [240 + i*2 + 15*np.sin(i*0.6) + np.random.normal(0, 8) for i in range(len(dates))],
-            'm6a.xlarge': [175 + i*1.2 + 8*np.sin(i*0.4) + np.random.normal(0, 4) for i in range(len(dates))],
-            'r6a.xlarge': [220 + i*1.8 + 12*np.sin(i*0.55) + np.random.normal(0, 6) for i in range(len(dates))]
-        })
-        
-        # Ensure positive values
-        for col in base_trend.columns[1:]:
-            base_trend[col] = base_trend[col].clip(lower=50)
+        try:
+            base_trend = pd.DataFrame({
+                'Date': dates,
+                'm5.xlarge': [190 + i*1.5 + 10*np.sin(i*0.5) + np.random.normal(0, 5) for i in range(len(dates))],
+                'r5.xlarge': [240 + i*2 + 15*np.sin(i*0.6) + np.random.normal(0, 8) for i in range(len(dates))],
+                'm6a.xlarge': [175 + i*1.2 + 8*np.sin(i*0.4) + np.random.normal(0, 4) for i in range(len(dates))],
+                'r6a.xlarge': [220 + i*1.8 + 12*np.sin(i*0.55) + np.random.normal(0, 6) for i in range(len(dates))]
+            })
+            
+            # Ensure positive values
+            for col in base_trend.columns[1:]:
+                base_trend[col] = base_trend[col].clip(lower=50)
+        except Exception as e:
+            # Fallback to simple trend without randomness
+            base_trend = pd.DataFrame({
+                'Date': dates,
+                'm5.xlarge': [190 + i*1.5 for i in range(len(dates))],
+                'r5.xlarge': [240 + i*2 for i in range(len(dates))],
+                'm6a.xlarge': [175 + i*1.2 for i in range(len(dates))],
+                'r6a.xlarge': [220 + i*1.8 for i in range(len(dates))]
+            })
         
         col1, col2 = st.columns([2, 1])
         
@@ -1213,7 +1226,7 @@ class CloudPricingOptimizer:
                 yaxis_title="Monthly Cost ($)",
                 legend_title="Instance Types"
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key="pricing_trends_chart")
         
         with col2:
             # Trend summary
@@ -1251,7 +1264,7 @@ class CloudPricingOptimizer:
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            if st.button("📄 Pricing Report", use_container_width=True):
+            if st.button("📄 Pricing Report", use_container_width=True, key="export_pricing"):
                 if hasattr(st.session_state, 'latest_pricing'):
                     csv_data = self.export_pricing_report()
                     if csv_data:
@@ -1260,42 +1273,46 @@ class CloudPricingOptimizer:
                             data=csv_data,
                             file_name=f"aws_pricing_report_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
                             mime="text/csv",
-                            use_container_width=True
+                            use_container_width=True,
+                            key="download_pricing"
                         )
                 else:
                     st.error("No pricing data to export")
         
         with col2:
-            if st.button("📊 Configuration", use_container_width=True):
+            if st.button("📊 Configuration", use_container_width=True, key="export_config"):
                 config_data = self.export_configuration()
                 st.download_button(
                     label="📥 Download JSON",
                     data=config_data,
                     file_name=f"workload_config_{datetime.now().strftime('%Y%m%d_%H%M')}.json",
                     mime="application/json",
-                    use_container_width=True
+                    use_container_width=True,
+                    key="download_config"
                 )
         
         with col3:
-            if st.button("📈 Full Analysis", use_container_width=True):
+            if st.button("📈 Full Analysis", use_container_width=True, key="export_analysis"):
                 summary_data = self.create_analysis_summary()
                 st.download_button(
                     label="📥 Download Report",
                     data=summary_data,
                     file_name=f"optimization_analysis_{datetime.now().strftime('%Y%m%d_%H%M')}.json",
                     mime="application/json",
-                    use_container_width=True
+                    use_container_width=True,
+                    key="download_analysis"
                 )
         
         with col4:
-            if st.button("📊 Trend Data", use_container_width=True):
+            if st.button("📊 Trend Data", use_container_width=True, key="export_trends"):
                 trend_csv = base_trend.to_csv(index=False)
                 st.download_button(
                     label="📥 Download CSV",
                     data=trend_csv,
                     file_name=f"pricing_trends_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
                     mime="text/csv",
-                    use_container_width=True
+                    use_container_width=True,
+                    key="download_trends"
                 )
     
     def export_pricing_report(self) -> str:
@@ -1428,9 +1445,6 @@ class CloudPricingOptimizer:
         }
         
         return json.dumps(summary, indent=2)
-
-# Add numpy import for trend generation
-import numpy as np
 
 # Application entry point
 def main():
