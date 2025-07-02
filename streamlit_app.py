@@ -659,18 +659,18 @@ class EnhancedClaudeAIIntegration:
     def _format_enhanced_pricing_for_prompt(self, pricing_data: List[PricingData]) -> str:
         """Format enhanced pricing data for AI prompt"""
         formatted = []
-        for i, pd in enumerate(pricing_data, 1):
-            specs = pd.specifications or {}
-            reserved_1yr = pd.reserved_pricing.get('1_year_all_upfront', 0) if pd.reserved_pricing else 0
-            reserved_3yr = pd.reserved_pricing.get('3_year_all_upfront', 0) if pd.reserved_pricing else 0
+        for i, pricing_obj in enumerate(pricing_data, 1):
+            specs = pricing_obj.specifications or {}
+            reserved_1yr = pricing_obj.reserved_pricing.get('1_year_all_upfront', 0) if pricing_obj.reserved_pricing else 0
+            reserved_3yr = pricing_obj.reserved_pricing.get('3_year_all_upfront', 0) if pricing_obj.reserved_pricing else 0
             
             formatted.append(
-                f"{i}. {pd.instance_type} ({specs.get('family', 'Unknown')}) - "
+                f"{i}. {pricing_obj.instance_type} ({specs.get('family', 'Unknown')}) - "
                 f"{specs.get('vcpus', '?')} vCPUs, {specs.get('ram', '?')} GB RAM\n"
-                f"   On-Demand: ${pd.price_per_hour:.3f}/hour (${pd.price_per_month:.0f}/month)\n"
+                f"   On-Demand: ${pricing_obj.price_per_hour:.3f}/hour (${pricing_obj.price_per_month:.0f}/month)\n"
                 f"   Reserved 1-Year: ${reserved_1yr:.3f}/hour (${reserved_1yr * 730:.0f}/month)\n"
                 f"   Reserved 3-Year: ${reserved_3yr:.3f}/hour (${reserved_3yr * 730:.0f}/month)\n"
-                f"   Spot: ${pd.spot_pricing:.3f}/hour (${pd.spot_pricing * 730:.0f}/month)"
+                f"   Spot: ${pricing_obj.spot_pricing:.3f}/hour (${pricing_obj.spot_pricing * 730:.0f}/month)"
             )
         return "\n\n".join(formatted)
     
@@ -984,7 +984,7 @@ class PDFReportGenerator:
         # Key findings
         if pricing_data:
             cheapest = min(pricing_data, key=lambda x: x.price_per_month)
-            avg_cost = sum(pd.price_per_month for pd in pricing_data) / len(pricing_data)
+            avg_cost = sum(pricing_obj.price_per_month for pricing_obj in pricing_data) / len(pricing_data)
             
             summary_text = f"""
             <b>Analysis Overview:</b> This report analyzes {len(pricing_data)} AWS EC2 instance configurations 
@@ -1074,18 +1074,18 @@ class PDFReportGenerator:
         
         pricing_table_data = [['Instance Type', 'Family', 'vCPUs', 'RAM (GB)', 'On-Demand\n(Monthly)', '1-Year RI\n(Monthly)', '3-Year RI\n(Monthly)', 'Spot\n(Monthly)']]
         
-        for pd in pricing_data[:10]:
-            specs = pd.specifications or {}
-            reserved_1yr = pd.reserved_pricing.get('1_year_all_upfront', 0) * 730 if pd.reserved_pricing else 0
-            reserved_3yr = pd.reserved_pricing.get('3_year_all_upfront', 0) * 730 if pd.reserved_pricing else 0
-            spot_monthly = pd.spot_pricing * 730 if pd.spot_pricing else 0
+        for pricing_obj in pricing_data[:10]:
+            specs = pricing_obj.specifications or {}
+            reserved_1yr = pricing_obj.reserved_pricing.get('1_year_all_upfront', 0) * 730 if pricing_obj.reserved_pricing else 0
+            reserved_3yr = pricing_obj.reserved_pricing.get('3_year_all_upfront', 0) * 730 if pricing_obj.reserved_pricing else 0
+            spot_monthly = pricing_obj.spot_pricing * 730 if pricing_obj.spot_pricing else 0
             
             pricing_table_data.append([
-                pd.instance_type,
+                pricing_obj.instance_type,
                 specs.get('family', 'N/A'),
                 str(specs.get('vcpus', 'N/A')),
                 str(specs.get('ram', 'N/A')),
-                f"${pd.price_per_month:,.0f}",
+                f"${pricing_obj.price_per_month:,.0f}",
                 f"${reserved_1yr:,.0f}",
                 f"${reserved_3yr:,.0f}",
                 f"${spot_monthly:,.0f}"
@@ -1166,10 +1166,10 @@ class PDFReportGenerator:
         cpu_req = config.get('cpu_cores', 4)
         ram_req = config.get('ram_gb', 16)
         
-        suitable_instances = [pd for pd in pricing_data 
-                            if pd.specifications and 
-                            pd.specifications.get('vcpus', 0) >= cpu_req and 
-                            pd.specifications.get('ram', 0) >= ram_req]
+        suitable_instances = [pricing_obj for pricing_obj in pricing_data 
+                            if pricing_obj.specifications and 
+                            pricing_obj.specifications.get('vcpus', 0) >= cpu_req and 
+                            pricing_obj.specifications.get('ram', 0) >= ram_req]
         
         if suitable_instances:
             recommended_instance = suitable_instances[0]  # Most economical suitable option
@@ -1577,22 +1577,22 @@ class EnhancedCloudPricingOptimizer:
         
         # Create enhanced DataFrame for display
         df_data = []
-        for pd in pricing_data:
-            specs = pd.specifications or {}
-            reserved_1yr = pd.reserved_pricing.get('1_year_all_upfront', 0) * 730 if pd.reserved_pricing else 0
-            reserved_3yr = pd.reserved_pricing.get('3_year_all_upfront', 0) * 730 if pd.reserved_pricing else 0
-            spot_monthly = pd.spot_pricing * 730 if pd.spot_pricing else 0
+        for pricing_obj in pricing_data:
+            specs = pricing_obj.specifications or {}
+            reserved_1yr = pricing_obj.reserved_pricing.get('1_year_all_upfront', 0) * 730 if pricing_obj.reserved_pricing else 0
+            reserved_3yr = pricing_obj.reserved_pricing.get('3_year_all_upfront', 0) * 730 if pricing_obj.reserved_pricing else 0
+            spot_monthly = pricing_obj.spot_pricing * 730 if pricing_obj.spot_pricing else 0
             
             df_data.append({
-                'Instance Type': pd.instance_type,
+                'Instance Type': pricing_obj.instance_type,
                 'Family': specs.get('family', 'N/A'),
                 'vCPUs': specs.get('vcpus', 'N/A'),
                 'RAM (GB)': specs.get('ram', 'N/A'),
-                'On-Demand (Monthly)': f"${pd.price_per_month:.2f}",
+                'On-Demand (Monthly)': f"${pricing_obj.price_per_month:.2f}",
                 '1-Year RI (Monthly)': f"${reserved_1yr:.2f}",
                 '3-Year RI (Monthly)': f"${reserved_3yr:.2f}",
                 'Spot (Monthly)': f"${spot_monthly:.2f}",
-                'Max Savings': f"{((pd.price_per_month - reserved_3yr) / pd.price_per_month * 100):.0f}%" if pd.price_per_month > 0 else "N/A"
+                'Max Savings': f"{((pricing_obj.price_per_month - reserved_3yr) / pricing_obj.price_per_month * 100):.0f}%" if pricing_obj.price_per_month > 0 else "N/A"
             })
         
         df = pd.DataFrame(df_data)
@@ -1614,8 +1614,8 @@ class EnhancedCloudPricingOptimizer:
         
         with col2:
             avg_savings = np.mean([
-                (pd.price_per_month - pd.reserved_pricing.get('3_year_all_upfront', 0) * 730) / pd.price_per_month * 100
-                for pd in pricing_data if pd.reserved_pricing and pd.price_per_month > 0
+                (pricing_obj.price_per_month - pricing_obj.reserved_pricing.get('3_year_all_upfront', 0) * 730) / pricing_obj.price_per_month * 100
+                for pricing_obj in pricing_data if pricing_obj.reserved_pricing and pricing_obj.price_per_month > 0
             ])
             st.markdown(f"""
             <div class="metric-card">
@@ -1627,8 +1627,8 @@ class EnhancedCloudPricingOptimizer:
         
         with col3:
             spot_savings = np.mean([
-                (pd.price_per_month - pd.spot_pricing * 730) / pd.price_per_month * 100
-                for pd in pricing_data if pd.spot_pricing and pd.price_per_month > 0
+                (pricing_obj.price_per_month - pricing_obj.spot_pricing * 730) / pricing_obj.price_per_month * 100
+                for pricing_obj in pricing_data if pricing_obj.spot_pricing and pricing_obj.price_per_month > 0
             ])
             st.markdown(f"""
             <div class="metric-card">
@@ -1669,9 +1669,9 @@ class EnhancedCloudPricingOptimizer:
         )
         
         # On-Demand vs RI comparison
-        instance_names = [pd.instance_type for pd in pricing_data[:8]]
-        on_demand_costs = [pd.price_per_month for pd in pricing_data[:8]]
-        ri_3yr_costs = [pd.reserved_pricing.get('3_year_all_upfront', 0) * 730 for pd in pricing_data[:8]]
+        instance_names = [pricing_obj.instance_type for pricing_obj in pricing_data[:8]]
+        on_demand_costs = [pricing_obj.price_per_month for pricing_obj in pricing_data[:8]]
+        ri_3yr_costs = [pricing_obj.reserved_pricing.get('3_year_all_upfront', 0) * 730 for pricing_obj in pricing_data[:8]]
         
         fig.add_trace(
             go.Bar(name='On-Demand', x=instance_names, y=on_demand_costs, marker_color='#dc3545'),
@@ -1683,8 +1683,8 @@ class EnhancedCloudPricingOptimizer:
         )
         
         # Spot savings
-        spot_savings_pct = [(pd.price_per_month - pd.spot_pricing * 730) / pd.price_per_month * 100 
-                           for pd in pricing_data[:8]]
+        spot_savings_pct = [(pricing_obj.price_per_month - pricing_obj.spot_pricing * 730) / pricing_obj.price_per_month * 100 
+                           for pricing_obj in pricing_data[:8]]
         fig.add_trace(
             go.Bar(x=instance_names, y=spot_savings_pct, marker_color='#ffc107', name='Spot Savings %'),
             row=1, col=2
@@ -1692,11 +1692,11 @@ class EnhancedCloudPricingOptimizer:
         
         # Price by family
         families = {}
-        for pd in pricing_data:
-            family = pd.specifications.get('family', 'Unknown') if pd.specifications else 'Unknown'
+        for pricing_obj in pricing_data:
+            family = pricing_obj.specifications.get('family', 'Unknown') if pricing_obj.specifications else 'Unknown'
             if family not in families:
                 families[family] = []
-            families[family].append(pd.price_per_month)
+            families[family].append(pricing_obj.price_per_month)
         
         family_avg = {family: np.mean(costs) for family, costs in families.items()}
         fig.add_trace(
@@ -1708,10 +1708,10 @@ class EnhancedCloudPricingOptimizer:
         # Cost per vCPU
         cost_per_vcpu = []
         vcpu_instances = []
-        for pd in pricing_data[:8]:
-            if pd.specifications and pd.specifications.get('vcpus', 0) > 0:
-                cost_per_vcpu.append(pd.price_per_month / pd.specifications['vcpus'])
-                vcpu_instances.append(pd.instance_type)
+        for pricing_obj in pricing_data[:8]:
+            if pricing_obj.specifications and pricing_obj.specifications.get('vcpus', 0) > 0:
+                cost_per_vcpu.append(pricing_obj.price_per_month / pricing_obj.specifications['vcpus'])
+                vcpu_instances.append(pricing_obj.instance_type)
         
         fig.add_trace(
             go.Bar(x=vcpu_instances, y=cost_per_vcpu, marker_color='#20c997', name='Cost per vCPU'),
@@ -1940,10 +1940,10 @@ class EnhancedCloudPricingOptimizer:
         cpu_req = config.get('cpu_cores', 4)
         ram_req = config.get('ram_gb', 16)
         
-        suitable_instances = [pd for pd in pricing_data 
-                            if pd.specifications and 
-                            pd.specifications.get('vcpus', 0) >= cpu_req and 
-                            pd.specifications.get('ram', 0) >= ram_req]
+        suitable_instances = [pricing_obj for pricing_obj in pricing_data 
+                            if pricing_obj.specifications and 
+                            pricing_obj.specifications.get('vcpus', 0) >= cpu_req and 
+                            pricing_obj.specifications.get('ram', 0) >= ram_req]
         
         if not suitable_instances:
             st.error("❌ No instances meet your minimum requirements.")
@@ -2228,36 +2228,36 @@ class EnhancedCloudPricingOptimizer:
         config = st.session_state.config
         
         report_data = []
-        for pd in st.session_state.latest_pricing:
-            specs = pd.specifications or {}
+        for pricing_obj in st.session_state.latest_pricing:
+            specs = pricing_obj.specifications or {}
             
             # Calculate all pricing options
-            reserved_1yr = pd.reserved_pricing.get('1_year_all_upfront', 0) * 730 if pd.reserved_pricing else 0
-            reserved_3yr = pd.reserved_pricing.get('3_year_all_upfront', 0) * 730 if pd.reserved_pricing else 0
-            spot_monthly = pd.spot_pricing * 730 if pd.spot_pricing else 0
+            reserved_1yr = pricing_obj.reserved_pricing.get('1_year_all_upfront', 0) * 730 if pricing_obj.reserved_pricing else 0
+            reserved_3yr = pricing_obj.reserved_pricing.get('3_year_all_upfront', 0) * 730 if pricing_obj.reserved_pricing else 0
+            spot_monthly = pricing_obj.spot_pricing * 730 if pricing_obj.spot_pricing else 0
             
             report_data.append({
-                'Instance Type': pd.instance_type,
+                'Instance Type': pricing_obj.instance_type,
                 'Instance Family': specs.get('family', 'N/A'),
-                'Region': pd.region,
+                'Region': pricing_obj.region,
                 'vCPUs': specs.get('vcpus', 'N/A'),
                 'RAM (GB)': specs.get('ram', 'N/A'),
                 'Network Performance': specs.get('network', 'N/A'),
                 'Storage Type': specs.get('storage', 'N/A'),
-                'On-Demand Hourly': pd.price_per_hour,
-                'On-Demand Monthly': pd.price_per_month,
-                'On-Demand Annual': pd.price_per_month * 12,
+                'On-Demand Hourly': pricing_obj.price_per_hour,
+                'On-Demand Monthly': pricing_obj.price_per_month,
+                'On-Demand Annual': pricing_obj.price_per_month * 12,
                 '1-Year RI Monthly': reserved_1yr,
                 '1-Year RI Annual': reserved_1yr * 12,
                 '3-Year RI Monthly': reserved_3yr,
                 '3-Year RI Annual': reserved_3yr * 12,
                 'Spot Monthly': spot_monthly,
                 'Spot Annual': spot_monthly * 12,
-                'Max Savings vs On-Demand': f"{((pd.price_per_month - reserved_3yr) / pd.price_per_month * 100):.1f}%" if pd.price_per_month > 0 else "N/A",
+                'Max Savings vs On-Demand': f"{((pricing_obj.price_per_month - reserved_3yr) / pricing_obj.price_per_month * 100):.1f}%" if pricing_obj.price_per_month > 0 else "N/A",
                 'Meets CPU Requirement': 'Yes' if specs.get('vcpus', 0) >= config.get('cpu_cores', 0) else 'No',
                 'Meets RAM Requirement': 'Yes' if specs.get('ram', 0) >= config.get('ram_gb', 0) else 'No',
                 'Data Source': 'AWS API' if not st.session_state.demo_mode else 'Sample Data',
-                'Last Updated': pd.last_updated.strftime('%Y-%m-%d %H:%M:%S')
+                'Last Updated': pricing_obj.last_updated.strftime('%Y-%m-%d %H:%M:%S')
             })
         
         df = pd.DataFrame(report_data)
