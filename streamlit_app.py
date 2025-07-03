@@ -612,26 +612,63 @@ class EnhancedCloudPricingOptimizer:
             st.session_state.pricing_cache = {}
     
     def _initialize_services(self):
-        """Initialize external services"""
+        """Initialize external services with proper error handling"""
         try:
-            # Get credentials from Streamlit secrets
-            aws_key = st.secrets.get("AWS_ACCESS_KEY_ID", None)
-            aws_secret = st.secrets.get("AWS_SECRET_ACCESS_KEY", None) 
-            claude_key = st.secrets.get("CLAUDE_API_KEY", None)
+            # Try to get credentials from Streamlit secrets
+            aws_key = None
+            aws_secret = None
+            claude_key = None
             
-            # Initialize services
+            try:
+                # Method 1: Direct access (if secrets is flat structure)
+                aws_key = st.secrets.get("AWS_ACCESS_KEY_ID", None)
+                aws_secret = st.secrets.get("AWS_SECRET_ACCESS_KEY", None) 
+                claude_key = st.secrets.get("CLAUDE_API_KEY", None)
+            except:
+                pass
+                
+            try:
+                # Method 2: Nested access (if secrets is organized by service)
+                if not aws_key:
+                    aws_key = st.secrets["aws"]["AWS_ACCESS_KEY_ID"]
+                    aws_secret = st.secrets["aws"]["AWS_SECRET_ACCESS_KEY"]
+            except:
+                pass
+                
+            try:
+                if not claude_key:
+                    claude_key = st.secrets["anthropic"]["CLAUDE_API_KEY"]
+            except:
+                pass
+            
+            # Log what we found (without exposing actual keys)
+            logger.info(f"AWS credentials available: {bool(aws_key and aws_secret)}")
+            logger.info(f"Claude API key available: {bool(claude_key)}")
+            
+            # Initialize AWS service
             self.aws_pricing = AWSPricingService(aws_key, aws_secret)
-            self.mock_data = MockDataService()
+            
+            # Initialize Claude service with the fixed implementation
             self.claude_ai = ClaudeAIService(claude_key)
+            
+            # Initialize other services
+            self.mock_data = MockDataService()
             self.pdf_generator = PDFGeneratorService()
             
-            # Check if we should use demo mode
-            if not self.aws_pricing.connection_status["connected"]:
+            # Determine if we should use demo mode
+            aws_connected = self.aws_pricing.connection_status["connected"]
+            claude_connected = self.claude_ai.connection_status["connected"]
+            
+            if not aws_connected:
                 st.session_state.demo_mode = True
+                logger.warning("AWS not connected - using demo mode")
+            
+            if not claude_connected:
+                logger.warning("Claude API not connected - will use mock recommendations")
                 
         except Exception as e:
             logger.error(f"Service initialization error: {e}")
-            # Initialize with mock services
+            # Initialize with mock services as fallback
             self.aws_pricing = AWSPricingService()
             self.mock_data = MockDataService()
             self.claude_ai = ClaudeAIService()
