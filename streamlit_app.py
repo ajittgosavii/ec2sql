@@ -25,13 +25,13 @@ logger = logging.getLogger(__name__)
 
 # Page configuration
 st.set_page_config(
-    page_title="AWS SQL EC2 Pricing Optimizer with vROps & SQL Optimization",
+    page_title="AWS Cloud Migration Optimizer",
     page_icon="☁️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Enhanced Professional CSS styling - Fixed Layout
+# Enhanced Professional CSS styling
 st.markdown("""
 <style>
     /* Reset any potential layout conflicts */
@@ -222,81 +222,6 @@ st.markdown("""
         box-sizing: border-box;
     }
     
-    .status-container {
-        display: flex;
-        align-items: center;
-        justify-content: space-around;
-        gap: 20px;
-        padding: 20px;
-        background: #f8f9fa;
-        border-radius: 15px;
-        margin: 15px 0;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-        flex-wrap: wrap;
-    }
-    
-    .status-button {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 12px 20px;
-        border-radius: 30px;
-        font-weight: 600;
-        font-size: 0.9rem;
-        text-decoration: none;
-        transition: all 0.3s ease;
-        border: 2px solid;
-        min-width: 200px;
-        justify-content: flex-start;
-        cursor: default;
-    }
-    
-    .status-button-connected {
-        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-        color: white;
-        border-color: #28a745;
-        box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
-    }
-    
-    .status-button-demo {
-        background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
-        color: #212529;
-        border-color: #ffc107;
-        box-shadow: 0 4px 15px rgba(255, 193, 7, 0.3);
-        font-weight: 700;
-    }
-    
-    .status-indicator {
-        width: 14px;
-        height: 14px;
-        border-radius: 50%;
-        position: relative;
-        flex-shrink: 0;
-    }
-    
-    .status-indicator.connected {
-        background: #ffffff;
-        box-shadow: 0 0 10px rgba(255, 255, 255, 0.9);
-        animation: pulse-green 2s infinite;
-    }
-    
-    .status-indicator.demo {
-        background: #212529;
-        animation: pulse-orange 2s infinite;
-    }
-    
-    @keyframes pulse-green {
-        0% { box-shadow: 0 0 10px rgba(255, 255, 255, 0.9); }
-        50% { box-shadow: 0 0 20px rgba(255, 255, 255, 1), 0 0 30px rgba(255, 255, 255, 0.5); }
-        100% { box-shadow: 0 0 10px rgba(255, 255, 255, 0.9); }
-    }
-    
-    @keyframes pulse-orange {
-        0% { box-shadow: 0 0 10px rgba(33, 37, 41, 0.8); }
-        50% { box-shadow: 0 0 20px rgba(33, 37, 41, 1), 0 0 30px rgba(33, 37, 41, 0.5); }
-        100% { box-shadow: 0 0 10px rgba(33, 37, 41, 0.8); }
-    }
-    
     .demo-mode-banner {
         background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
         color: white;
@@ -307,22 +232,14 @@ st.markdown("""
         font-weight: 600;
         font-size: 1rem;
         box-shadow: 0 4px 15px rgba(23, 162, 184, 0.3);
-        animation: demo-glow 3s infinite alternate;
-    }
-    
-    @keyframes demo-glow {
-        0% { box-shadow: 0 4px 15px rgba(23, 162, 184, 0.3); }
-        100% { box-shadow: 0 4px 25px rgba(23, 162, 184, 0.5); }
     }
     
     @media (max-width: 768px) {
-        .status-container {
-            flex-direction: column;
-            gap: 15px;
+        .main-header h1 {
+            font-size: 1.8rem;
         }
-        .status-button {
-            min-width: 250px;
-            justify-content: center;
+        .main-header p {
+            font-size: 0.9rem;
         }
     }
 </style>
@@ -873,9 +790,11 @@ class PDFGeneratorService:
         
         try:
             # Try to import reportlab at runtime
-            from reportlab.lib.pagesizes import letter, A4
-            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-            from reportlab.lib.styles import getSampleStyleSheet
+            import reportlab.lib.pagesizes
+            import reportlab.platypus
+            import reportlab.lib.styles
+            import reportlab.lib.units
+            import reportlab.lib.colors
             
             self.reportlab_available = True
             self.pdf_available = True
@@ -901,17 +820,36 @@ class PDFGeneratorService:
         """Create actual PDF report using reportlab"""
         try:
             from reportlab.lib.pagesizes import A4
-            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-            from reportlab.lib.styles import getSampleStyleSheet
+            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.lib.units import inch
+            from reportlab.lib import colors
             
             buffer = BytesIO()
-            doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
+            doc = SimpleDocTemplate(
+                buffer, 
+                pagesize=A4, 
+                rightMargin=72, 
+                leftMargin=72, 
+                topMargin=72, 
+                bottomMargin=18
+            )
             
             styles = getSampleStyleSheet()
             story = []
             
+            # Custom styles
+            title_style = ParagraphStyle(
+                'CustomTitle',
+                parent=styles['Heading1'],
+                fontSize=24,
+                spaceAfter=30,
+                alignment=1,  # Center alignment
+                textColor=colors.HexColor('#1f4e79')
+            )
+            
             # Title
-            title = Paragraph("AWS Migration Analysis Report", styles['Title'])
+            title = Paragraph("AWS Migration Analysis Report", title_style)
             story.append(title)
             story.append(Spacer(1, 20))
             
@@ -920,35 +858,86 @@ class PDFGeneratorService:
                 story.append(Paragraph("Executive Summary", styles['Heading1']))
                 story.append(Paragraph(f"<b>Primary Recommendation:</b> {recommendation.recommendation}", styles['Normal']))
                 story.append(Spacer(1, 12))
+                story.append(Paragraph(f"<b>Confidence Score:</b> {recommendation.confidence_score:.0f}%", styles['Normal']))
+                story.append(Spacer(1, 12))
                 story.append(Paragraph(f"<b>Expected Annual Savings:</b> ${recommendation.expected_savings:,.0f}", styles['Normal']))
                 story.append(Spacer(1, 12))
+                story.append(Paragraph(f"<b>Cost Impact:</b> {recommendation.cost_impact}", styles['Normal']))
+                story.append(Spacer(1, 20))
             
             # vROps Analysis
             if vrops_data:
                 story.append(Paragraph("vRealize Operations Analysis", styles['Heading1']))
-                story.append(Paragraph(f"CPU Utilization: {vrops_data.cpu_usage_avg:.1f}% average", styles['Normal']))
-                story.append(Paragraph(f"Memory Utilization: {vrops_data.memory_usage_avg:.1f}% average", styles['Normal']))
-                story.append(Spacer(1, 12))
+                story.append(Paragraph(f"<b>CPU Utilization:</b> {vrops_data.cpu_usage_avg:.1f}% average, {vrops_data.cpu_usage_peak:.1f}% peak", styles['Normal']))
+                story.append(Spacer(1, 6))
+                story.append(Paragraph(f"<b>Memory Utilization:</b> {vrops_data.memory_usage_avg:.1f}% average, {vrops_data.memory_usage_peak:.1f}% peak", styles['Normal']))
+                story.append(Spacer(1, 6))
+                story.append(Paragraph(f"<b>CPU Ready Time:</b> {vrops_data.cpu_ready_avg:.1f}%", styles['Normal']))
+                story.append(Spacer(1, 6))
+                story.append(Paragraph(f"<b>Memory Balloon:</b> {vrops_data.memory_balloon_avg:.1f}%", styles['Normal']))
+                story.append(Spacer(1, 6))
+                story.append(Paragraph(f"<b>Disk Latency:</b> {vrops_data.disk_latency_avg:.1f}ms", styles['Normal']))
+                story.append(Spacer(1, 20))
             
             # Pricing Analysis
             if pricing_data:
                 story.append(Paragraph("Pricing Analysis", styles['Heading1']))
                 cheapest = min(pricing_data, key=lambda x: x.total_monthly_cost)
-                story.append(Paragraph(f"Recommended Instance: {cheapest.instance_type}", styles['Normal']))
-                story.append(Paragraph(f"Monthly Cost: ${cheapest.total_monthly_cost:,.0f}", styles['Normal']))
-                story.append(Spacer(1, 12))
+                story.append(Paragraph(f"<b>Recommended Instance:</b> {cheapest.instance_type}", styles['Normal']))
+                story.append(Spacer(1, 6))
+                
+                specs = cheapest.specifications or {}
+                story.append(Paragraph(f"<b>Specifications:</b> {specs.get('vcpus', 'N/A')} vCPUs, {specs.get('ram', 'N/A')}GB RAM", styles['Normal']))
+                story.append(Spacer(1, 6))
+                story.append(Paragraph(f"<b>Monthly Cost:</b> ${cheapest.total_monthly_cost:,.0f}", styles['Normal']))
+                story.append(Spacer(1, 6))
+                story.append(Paragraph(f"<b>Annual Cost:</b> ${cheapest.total_monthly_cost * 12:,.0f}", styles['Normal']))
+                story.append(Spacer(1, 20))
             
             # SQL Optimization
             if sql_config:
-                story.append(Paragraph("SQL Server Optimization", styles['Heading1']))
-                story.append(Paragraph(f"Current Edition: {sql_config.current_edition}", styles['Normal']))
-                story.append(Paragraph(f"Licensed Cores: {sql_config.current_cores_licensed}", styles['Normal']))
-                story.append(Spacer(1, 12))
+                story.append(Paragraph("SQL Server Configuration", styles['Heading1']))
+                story.append(Paragraph(f"<b>Current Edition:</b> {sql_config.current_edition}", styles['Normal']))
+                story.append(Spacer(1, 6))
+                story.append(Paragraph(f"<b>Licensing Model:</b> {sql_config.current_licensing_model}", styles['Normal']))
+                story.append(Spacer(1, 6))
+                story.append(Paragraph(f"<b>Licensed Cores:</b> {sql_config.current_cores_licensed}", styles['Normal']))
+                story.append(Spacer(1, 6))
+                story.append(Paragraph(f"<b>Concurrent Users:</b> {sql_config.concurrent_users}", styles['Normal']))
+                story.append(Spacer(1, 20))
+            
+            # Risk Assessment
+            if risks:
+                story.append(Paragraph("Risk Assessment", styles['Heading1']))
+                for risk in risks:
+                    story.append(Paragraph(f"<b>{risk.category}</b> - {risk.risk_level} Risk", styles['Normal']))
+                    story.append(Paragraph(f"Description: {risk.description}", styles['Normal']))
+                    story.append(Paragraph(f"Mitigation: {risk.mitigation_strategy}", styles['Normal']))
+                    story.append(Spacer(1, 12))
+            
+            # Implementation Phases
+            if phases:
+                story.append(Paragraph("Implementation Roadmap", styles['Heading1']))
+                for i, phase in enumerate(phases, 1):
+                    story.append(Paragraph(f"<b>Phase {i}: {phase.phase}</b>", styles['Normal']))
+                    story.append(Paragraph(f"Duration: {phase.duration}", styles['Normal']))
+                    story.append(Paragraph(f"Activities: {', '.join(phase.activities)}", styles['Normal']))
+                    story.append(Spacer(1, 12))
+            
+            # Footer
+            story.append(Spacer(1, 30))
+            story.append(Paragraph("Analysis Configuration", styles['Heading2']))
+            story.append(Paragraph(f"Target Region: {config.get('region', 'Not specified')}", styles['Normal']))
+            story.append(Paragraph(f"Workload Type: {config.get('workload_type', 'Not specified')}", styles['Normal']))
+            story.append(Paragraph(f"Analysis Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal']))
             
             doc.build(story)
             buffer.seek(0)
             return buffer
             
+        except ImportError as ie:
+            logger.error(f"ReportLab import error in PDF creation: {ie}")
+            return self._create_text_report(config, pricing_data, recommendation, risks, phases, vrops_data, sql_config)
         except Exception as e:
             logger.error(f"PDF creation error: {e}")
             return self._create_text_report(config, pricing_data, recommendation, risks, phases, vrops_data, sql_config)
@@ -1238,8 +1227,8 @@ class EnhancedCloudPricingOptimizer:
         """Render the main Streamlit interface"""
         st.markdown("""
         <div class="main-header">
-            <h1>☁️ AWS Cloud Pricing Optimizer</h1>
-            <p>Professional-grade AWS pricing analysis with vROps metrics integration and SQL licensing optimization</p>
+            <h1>AWS Cloud Migration Optimizer</h1>
+            <p>Enterprise AWS pricing analysis with vRealize Operations integration</p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -1276,7 +1265,7 @@ class EnhancedCloudPricingOptimizer:
             self.render_reports()
     
     def render_connection_status(self):
-        """Render enhanced connection status with round button indicators"""
+        """Render professional connection status"""
         if st.session_state.demo_mode:
             st.markdown("""
             <div class="demo-mode-banner">
@@ -1289,71 +1278,41 @@ class EnhancedCloudPricingOptimizer:
         
         connection_status = st.session_state.connection_status
         
-        st.markdown('<div class="status-container">', unsafe_allow_html=True)
+        # Compact professional status indicators
+        col1, col2, col3 = st.columns([2, 1, 1])
         
-        aws_status = connection_status.get('aws', {})
-        if aws_status.get('connected'):
-            st.markdown("""
-            <div class="status-button status-button-connected">
-                <div class="status-indicator connected"></div>
-                <div class="status-text">
-                    <strong>AWS Pricing API</strong>
-                    <small>Live data ready</small>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.markdown("""
-            <div class="status-button status-button-demo">
-                <div class="status-indicator demo"></div>
-                <div class="status-text">
-                    <strong>AWS Pricing API</strong>
-                    <small>Demo mode</small>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+        with col1:
+            st.markdown("**System Status**")
         
-        claude_status = connection_status.get('claude', {})
-        if claude_status.get('connected'):
-            st.markdown("""
-            <div class="status-button status-button-connected">
-                <div class="status-indicator connected"></div>
-                <div class="status-text">
-                    <strong>Claude AI API</strong>
-                    <small>AI insights ready</small>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.markdown("""
-            <div class="status-button status-button-demo">
-                <div class="status-indicator demo"></div>
-                <div class="status-text">
-                    <strong>Claude AI API</strong>
-                    <small>Enhanced mock analysis</small>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+        with col2:
+            aws_status = connection_status.get('aws', {})
+            if aws_status.get('connected'):
+                st.success("🟢 AWS API")
+            else:
+                st.warning("🟡 Demo Mode")
         
-        st.markdown("</div>", unsafe_allow_html=True)
+        with col3:
+            claude_status = connection_status.get('claude', {})
+            if claude_status.get('connected'):
+                st.success("🟢 AI Engine")
+            else:
+                st.warning("🟡 Mock AI")
         
         if not aws_status.get('connected') or not claude_status.get('connected'):
-            with st.expander("🔧 Connection Details", expanded=False):
+            with st.expander("🔧 API Configuration", expanded=False):
                 if not aws_status.get('connected'):
-                    error_msg = aws_status.get('error', 'Unknown connection error')
+                    error_msg = aws_status.get('error', 'Credentials not configured')
                     st.info(f"**AWS Status:** {error_msg}")
                 
                 if not claude_status.get('connected'):
-                    error_msg = claude_status.get('error', 'Unknown connection error')
+                    error_msg = claude_status.get('error', 'API key not configured')
                     st.info(f"**Claude Status:** {error_msg}")
                 
                 st.markdown("""
-                **💡 To enable live API connections:**
-                1. Add AWS credentials to Streamlit secrets
-                2. Add Claude API key to Streamlit secrets
-                3. Restart the application
-                
-                **Current mode provides full functionality with enhanced demo data.**
+                **Enterprise Configuration:**
+                - Configure AWS credentials in secrets
+                - Add Claude API key for AI insights
+                - All features remain fully functional in demo mode
                 """)
         
         st.markdown("<br>", unsafe_allow_html=True)
@@ -2312,7 +2271,7 @@ class EnhancedCloudPricingOptimizer:
                 # Generate PDF executive summary
                 try:
                     from reportlab.lib.pagesizes import A4
-                    from reportlab.platypus import SimpleDocDocument, Paragraph, Spacer
+                    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
                     from reportlab.lib.styles import getSampleStyleSheet
                     
                     buffer = BytesIO()
@@ -2596,63 +2555,29 @@ Cost Impact: {rec.cost_impact}
 def main():
     """Main application entry point with enhanced error handling"""
     try:
-        missing_deps = []
-        available_features = []
-        
+        # Check for optional dependencies silently
+        pdf_available = False
         try:
-            # Check for reportlab
             import reportlab
-            available_features.append("📄 PDF Report Generation")
+            pdf_available = True
         except ImportError:
-            missing_deps.append("reportlab")
+            pass
         
-        always_available = [
-            "☁️ AWS Pricing Analysis",
-            "📊 vROps Performance Analysis", 
-            "🤖 AI-Powered Recommendations",
-            "🗃️ SQL Server Optimization",
-            "📈 Cost Comparison Analysis",
-            "📋 CSV/JSON Data Export",
-            "📝 Text Report Generation"
-        ]
-        
-        if missing_deps:
-            st.info(f"""
-            ℹ️ **Optional Dependencies Status**
-            
-            **✅ Available Features:**
-            {chr(10).join([f"  • {feature}" for feature in always_available + available_features])}
-            
-            **⚠️ Additional Features Available with Optional Dependencies:**
-            {chr(10).join([f"  • Professional PDF Reports (requires: reportlab)" if "reportlab" in missing_deps else ""])}
-            
-            **💡 To enable all features, install:**
-            ```bash
-            pip install {' '.join(missing_deps)}
-            ```
-            
-            **The application provides full analysis functionality with currently available dependencies.**
-            """)
-        else:
-            st.success(f"""
-            ✅ **All Dependencies Available - Full Feature Set Enabled**
-            
-            **Available Features:**
-            {chr(10).join([f"  • {feature}" for feature in always_available + available_features])}
+        # Only show dependency info if PDF is not available
+        if not pdf_available:
+            st.info("""
+            💡 **Professional PDF Reports:** Install `reportlab` to enable executive PDF generation.
+            All analysis features are fully functional with text reports.
             """)
         
         optimizer = EnhancedCloudPricingOptimizer()
         optimizer.render_main_interface()
         
-        feature_count = len(always_available) + len(available_features)
-        total_possible = len(always_available) + 1  # 1 optional feature
-        
         st.markdown("---")
         st.markdown(f"""
         <div style="text-align: center; color: #6c757d; font-size: 0.9rem; padding: 1rem;">
-            <strong>Enhanced AWS Cloud Pricing Optimizer v4.2</strong><br>
-            Professional AWS Migration Analysis with vRealize Operations & SQL Server Optimization<br>
-            <small>🚀 {feature_count}/{total_possible} features enabled • Real-time AWS pricing • AI-powered recommendations • Comprehensive reporting</small>
+            <strong>AWS Cloud Migration Optimizer</strong> • Professional Enterprise Edition<br>
+            <small>Real-time pricing analysis • AI-powered recommendations • Comprehensive reporting</small>
         </div>
         """, unsafe_allow_html=True)
         
@@ -2671,23 +2596,13 @@ def main():
                 st.json(dict(st.session_state))
         
         st.markdown("""
-        **🛠️ Troubleshooting Tips:**
+        **🛠️ Troubleshooting:**
         
         1. **Refresh the page** and try again
         2. **Clear browser cache** if issues persist  
-        3. **Check dependencies** - install missing packages if needed
+        3. **Check dependencies** - `pip install streamlit pandas boto3 plotly requests`
         4. **Verify credentials** in Streamlit secrets (if using live APIs)
         5. **Contact support** if the issue continues
-        
-        **Core Dependencies (Required):**
-        ```bash
-        pip install streamlit pandas boto3 plotly requests asyncio aiohttp
-        ```
-        
-        **Optional Dependencies (Enhanced Features):**
-        ```bash
-        pip install reportlab
-        ```
         """)
 
 if __name__ == "__main__":
