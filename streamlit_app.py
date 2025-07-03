@@ -1265,14 +1265,7 @@ class EnhancedCloudPricingOptimizer:
             self.render_reports()
     
     def render_connection_status(self):
-        """Render professional connection status"""
-        if st.session_state.demo_mode:
-            st.markdown("""
-            <div class="demo-mode-banner">
-                🚀 Demo Mode Active - Using enhanced sample data for demonstration
-            </div>
-            """, unsafe_allow_html=True)
-        
+        """Render professional connection status"""        
         if 'connection_status' not in st.session_state:
             return
         
