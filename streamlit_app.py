@@ -18,19 +18,21 @@ from io import BytesIO
 import numpy as np
 import base64
 import math
-from reportlab.lib.pagesizes import letter, A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
-from reportlab.lib import colors
-from reportlab.graphics.shapes import Drawing
-from reportlab.graphics.charts.barcharts import VerticalBarChart
-from reportlab.graphics.charts.piecharts import Pie
-from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
-import matplotlib.pyplot as plt
-import matplotlib
-matplotlib.use('Agg')  # Use non-interactive backend
-import seaborn as sns
+
+# Optional imports for PDF generation - will be imported conditionally
+# from reportlab.lib.pagesizes import letter, A4
+# from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
+# from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+# from reportlab.lib.units import inch
+# from reportlab.lib import colors
+# from reportlab.graphics.shapes import Drawing
+# from reportlab.graphics.charts.barcharts import VerticalBarChart
+# from reportlab.graphics.charts.piecharts import Pie
+# from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+# import matplotlib.pyplot as plt
+# import matplotlib
+# matplotlib.use('Agg')  # Use non-interactive backend
+# import seaborn as sns
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -1024,8 +1026,13 @@ class PDFGeneratorService:
     """Professional PDF report generation service with comprehensive analysis"""
     
     def __init__(self):
-        self.pdf_available = True
+        self.pdf_available = False
+        self.reportlab_available = False
+        self.matplotlib_available = False
+        
+        # Check for reportlab
         try:
+            import reportlab
             from reportlab.lib.pagesizes import letter, A4
             from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
             from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -1033,63 +1040,83 @@ class PDFGeneratorService:
             from reportlab.lib import colors
             from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
             
+            self.reportlab_available = True
             self.styles = getSampleStyleSheet()
             self._setup_custom_styles()
+            logger.info("ReportLab available - PDF generation enabled")
         except ImportError as e:
-            self.pdf_available = False
-            logger.warning(f"PDF dependencies not available: {e}")
+            self.reportlab_available = False
+            logger.warning(f"ReportLab not available: {e}")
+        
+        # Check for matplotlib
+        try:
+            import matplotlib
+            matplotlib.use('Agg')  # Use non-interactive backend
+            import matplotlib.pyplot as plt
+            import seaborn as sns
+            self.matplotlib_available = True
+            logger.info("Matplotlib available - chart generation enabled")
+        except ImportError as e:
+            self.matplotlib_available = False
+            logger.warning(f"Matplotlib not available: {e}")
+        
+        # PDF generation is available if reportlab is available
+        self.pdf_available = self.reportlab_available
     
     def _setup_custom_styles(self):
         """Setup custom paragraph styles for the PDF"""
-        if not self.pdf_available:
+        if not self.reportlab_available:
             return
             
-        from reportlab.lib.styles import ParagraphStyle
-        from reportlab.lib import colors
-        from reportlab.lib.enums import TA_CENTER
-        
-        self.styles.add(ParagraphStyle(
-            name='CustomTitle',
-            parent=self.styles['Heading1'],
-            fontSize=24,
-            spaceAfter=30,
-            textColor=colors.HexColor('#1f4e79'),
-            alignment=TA_CENTER
-        ))
-        
-        self.styles.add(ParagraphStyle(
-            name='CustomHeading',
-            parent=self.styles['Heading2'],
-            fontSize=16,
-            spaceAfter=12,
-            spaceBefore=20,
-            textColor=colors.HexColor('#1f4e79'),
-            borderWidth=1,
-            borderColor=colors.HexColor('#1f4e79'),
-            borderPadding=5
-        ))
-        
-        self.styles.add(ParagraphStyle(
-            name='CustomSubheading',
-            parent=self.styles['Heading3'],
-            fontSize=14,
-            spaceAfter=8,
-            spaceBefore=12,
-            textColor=colors.HexColor('#4a90e2')
-        ))
-        
-        self.styles.add(ParagraphStyle(
-            name='Insight',
-            parent=self.styles['Normal'],
-            fontSize=10,
-            leftIndent=20,
-            spaceAfter=6,
-            textColor=colors.HexColor('#2c5aa0'),
-            borderWidth=1,
-            borderColor=colors.HexColor('#e7f3ff'),
-            borderPadding=8,
-            backColor=colors.HexColor('#e7f3ff')
-        ))
+        try:
+            from reportlab.lib.styles import ParagraphStyle
+            from reportlab.lib import colors
+            from reportlab.lib.enums import TA_CENTER
+            
+            self.styles.add(ParagraphStyle(
+                name='CustomTitle',
+                parent=self.styles['Heading1'],
+                fontSize=24,
+                spaceAfter=30,
+                textColor=colors.HexColor('#1f4e79'),
+                alignment=TA_CENTER
+            ))
+            
+            self.styles.add(ParagraphStyle(
+                name='CustomHeading',
+                parent=self.styles['Heading2'],
+                fontSize=16,
+                spaceAfter=12,
+                spaceBefore=20,
+                textColor=colors.HexColor('#1f4e79'),
+                borderWidth=1,
+                borderColor=colors.HexColor('#1f4e79'),
+                borderPadding=5
+            ))
+            
+            self.styles.add(ParagraphStyle(
+                name='CustomSubheading',
+                parent=self.styles['Heading3'],
+                fontSize=14,
+                spaceAfter=8,
+                spaceBefore=12,
+                textColor=colors.HexColor('#4a90e2')
+            ))
+            
+            self.styles.add(ParagraphStyle(
+                name='Insight',
+                parent=self.styles['Normal'],
+                fontSize=10,
+                leftIndent=20,
+                spaceAfter=6,
+                textColor=colors.HexColor('#2c5aa0'),
+                borderWidth=1,
+                borderColor=colors.HexColor('#e7f3ff'),
+                borderPadding=8,
+                backColor=colors.HexColor('#e7f3ff')
+            ))
+        except Exception as e:
+            logger.error(f"Error setting up custom styles: {e}")
     
     def create_comprehensive_report(self, config, pricing_data, recommendation, risks, phases, vrops_data, sql_config):
         """Create comprehensive report - PDF if available, otherwise detailed text"""
@@ -1106,61 +1133,67 @@ class PDFGeneratorService:
     
     def _create_pdf_report(self, config, pricing_data, recommendation, risks, phases, vrops_data, sql_config):
         """Create actual PDF report using reportlab"""
-        from reportlab.lib.pagesizes import A4
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
-        from reportlab.lib.units import inch
-        from reportlab.lib import colors
-        
-        buffer = BytesIO()
-        doc = SimpleDocTemplate(
-            buffer,
-            pagesize=A4,
-            rightMargin=72,
-            leftMargin=72,
-            topMargin=72,
-            bottomMargin=18
-        )
-        
-        # Build report content
-        story = []
-        
-        # Title Page
-        self._add_title_page(story, config)
-        
-        # Executive Summary
-        self._add_executive_summary(story, recommendation, pricing_data)
-        
-        # vROps Analysis
-        if vrops_data:
-            self._add_vrops_analysis(story, vrops_data)
-        
-        # Pricing Analysis
-        if pricing_data:
-            self._add_pricing_analysis(story, pricing_data)
-        
-        # AI Recommendations
-        if recommendation:
-            self._add_ai_recommendations(story, recommendation, risks, phases)
-        
-        # SQL Optimization
-        if sql_config:
-            self._add_sql_optimization(story, sql_config)
-        
-        # Cost Comparison & ROI Analysis
-        if pricing_data:
-            self._add_cost_comparison(story, pricing_data)
-        
-        # Implementation Roadmap
-        if phases:
-            self._add_implementation_roadmap(story, phases)
-        
-        # Appendices
-        self._add_appendices(story, config, pricing_data, vrops_data, sql_config)
-        
-        # Build PDF
-        doc.build(story)
-        buffer.seek(0)
-        return buffer
+        try:
+            from reportlab.lib.pagesizes import A4
+            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
+            from reportlab.lib.units import inch
+            from reportlab.lib import colors
+            
+            buffer = BytesIO()
+            doc = SimpleDocTemplate(
+                buffer,
+                pagesize=A4,
+                rightMargin=72,
+                leftMargin=72,
+                topMargin=72,
+                bottomMargin=18
+            )
+            
+            # Build report content
+            story = []
+            
+            # Title Page
+            self._add_title_page(story, config)
+            
+            # Executive Summary
+            self._add_executive_summary(story, recommendation, pricing_data)
+            
+            # vROps Analysis
+            if vrops_data:
+                self._add_vrops_analysis(story, vrops_data)
+            
+            # Pricing Analysis
+            if pricing_data:
+                self._add_pricing_analysis(story, pricing_data)
+            
+            # AI Recommendations
+            if recommendation:
+                self._add_ai_recommendations(story, recommendation, risks, phases)
+            
+            # SQL Optimization
+            if sql_config:
+                self._add_sql_optimization(story, sql_config)
+            
+            # Cost Comparison & ROI Analysis
+            if pricing_data:
+                self._add_cost_comparison(story, pricing_data)
+            
+            # Implementation Roadmap
+            if phases:
+                self._add_implementation_roadmap(story, phases)
+            
+            # Appendices
+            self._add_appendices(story, config, pricing_data, vrops_data, sql_config)
+            
+            # Build PDF
+            doc.build(story)
+            buffer.seek(0)
+            return buffer
+            
+        except Exception as e:
+            logger.error(f"PDF creation error: {e}")
+            # Fall back to text report
+            return self._create_text_report(config, pricing_data, recommendation, risks, phases, vrops_data, sql_config)
     
     def _create_text_report(self, config, pricing_data, recommendation, risks, phases, vrops_data, sql_config):
         """Create detailed text report when PDF is not available"""
@@ -1352,6 +1385,224 @@ pip install reportlab matplotlib seaborn
         buffer.write(fallback_content.encode('utf-8'))
         buffer.seek(0)
         return buffer
+    
+    def _add_title_page(self, story, config):
+        """Add professional title page"""
+        if not self.reportlab_available:
+            return
+            
+        try:
+            from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
+            from reportlab.lib.units import inch
+            from reportlab.lib import colors
+            
+            story.append(Spacer(1, 2*inch))
+            
+            title = Paragraph("AWS Cloud Migration Analysis Report", self.styles['CustomTitle'])
+            story.append(title)
+            story.append(Spacer(1, 0.5*inch))
+            
+            subtitle = Paragraph("Professional Infrastructure Optimization with vRealize Operations & SQL Server Analysis", self.styles['Normal'])
+            subtitle.alignment = 1  # Center alignment
+            story.append(subtitle)
+            story.append(Spacer(1, 1*inch))
+            
+            # Report details table
+            report_data = [
+                ['Report Generated:', datetime.now().strftime('%B %d, %Y at %I:%M %p')],
+                ['Target Region:', config.get('region', 'Not specified')],
+                ['Workload Type:', config.get('workload_type', 'Not specified')],
+                ['Analysis Scope:', 'Infrastructure, Licensing, Performance, Cost Optimization']
+            ]
+            
+            report_table = Table(report_data, colWidths=[2*inch, 3*inch])
+            report_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f8f9fa')),
+                ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 0), (-1, -1), 10),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+                ('TOPPADDING', (0, 0), (-1, -1), 8),
+                ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#dee2e6'))
+            ]))
+            story.append(report_table)
+            story.append(Spacer(1, 50))  # Use fixed spacing instead of PageBreak for now
+        except Exception as e:
+            logger.error(f"Error adding title page: {e}")
+    
+    def _add_executive_summary(self, story, recommendation, pricing_data):
+        """Add executive summary section - simplified version"""
+        if not self.reportlab_available:
+            return
+            
+        try:
+            from reportlab.platypus import Paragraph, Spacer
+            
+            story.append(Paragraph("Executive Summary", self.styles['CustomHeading']))
+            
+            if recommendation:
+                story.append(Paragraph("Key Recommendations", self.styles['CustomSubheading']))
+                story.append(Paragraph(f"<b>Primary Recommendation:</b> {recommendation.recommendation}", self.styles['Normal']))
+                story.append(Spacer(1, 12))
+                story.append(Paragraph(f"<b>Confidence Level:</b> {recommendation.confidence_score:.0f}%", self.styles['Normal']))
+                story.append(Paragraph(f"<b>Expected Annual Savings:</b> ${recommendation.expected_savings:,.0f}", self.styles['Normal']))
+                story.append(Paragraph(f"<b>Cost Impact:</b> {recommendation.cost_impact}", self.styles['Normal']))
+                story.append(Spacer(1, 12))
+            
+            if pricing_data:
+                cheapest = min(pricing_data, key=lambda x: x.total_monthly_cost)
+                most_expensive = max(pricing_data, key=lambda x: x.total_monthly_cost)
+                
+                story.append(Paragraph("Cost Analysis Summary", self.styles['CustomSubheading']))
+                story.append(Paragraph(f"<b>Recommended Instance:</b> {cheapest.instance_type}", self.styles['Normal']))
+                story.append(Paragraph(f"<b>Optimal Monthly Cost:</b> ${cheapest.total_monthly_cost:,.0f}", self.styles['Normal']))
+                story.append(Paragraph(f"<b>Potential Monthly Savings:</b> ${most_expensive.total_monthly_cost - cheapest.total_monthly_cost:,.0f}", self.styles['Normal']))
+                story.append(Spacer(1, 12))
+            
+            story.append(Spacer(1, 50))  # Add spacing between sections
+        except Exception as e:
+            logger.error(f"Error adding executive summary: {e}")
+    
+    # Simplified versions of other methods to avoid complex table dependencies
+    def _add_vrops_analysis(self, story, vrops_data):
+        """Add simplified vROps analysis"""
+        if not self.reportlab_available:
+            return
+            
+        try:
+            from reportlab.platypus import Paragraph, Spacer
+            
+            story.append(Paragraph("vRealize Operations Performance Analysis", self.styles['CustomHeading']))
+            
+            # Performance metrics as paragraphs instead of complex tables
+            story.append(Paragraph(f"<b>CPU Utilization:</b> {vrops_data.cpu_usage_avg:.1f}% average, {vrops_data.cpu_usage_peak:.1f}% peak", self.styles['Normal']))
+            story.append(Paragraph(f"<b>Memory Utilization:</b> {vrops_data.memory_usage_avg:.1f}% average, {vrops_data.memory_usage_peak:.1f}% peak", self.styles['Normal']))
+            story.append(Paragraph(f"<b>CPU Ready Time:</b> {vrops_data.cpu_ready_avg:.1f}%", self.styles['Normal']))
+            story.append(Paragraph(f"<b>Memory Balloon:</b> {vrops_data.memory_balloon_avg:.1f}%", self.styles['Normal']))
+            story.append(Paragraph(f"<b>Disk Latency:</b> {vrops_data.disk_latency_avg:.1f}ms", self.styles['Normal']))
+            story.append(Spacer(1, 20))
+            
+            # Performance insights
+            story.append(Paragraph("Performance Insights", self.styles['CustomSubheading']))
+            if vrops_data.cpu_usage_avg < 40:
+                story.append(Paragraph("CPU utilization is low - significant right-sizing opportunity identified", self.styles['Insight']))
+            if vrops_data.cpu_ready_avg > 5:
+                story.append(Paragraph("High CPU ready time indicates resource contention", self.styles['Insight']))
+            if vrops_data.memory_balloon_avg > 1:
+                story.append(Paragraph("Memory ballooning detected - recommend increasing memory allocation", self.styles['Insight']))
+            
+            story.append(Spacer(1, 50))
+        except Exception as e:
+            logger.error(f"Error adding vROps analysis: {e}")
+    
+    def _add_pricing_analysis(self, story, pricing_data):
+        """Add simplified pricing analysis"""
+        if not self.reportlab_available:
+            return
+            
+        try:
+            from reportlab.platypus import Paragraph, Spacer
+            
+            story.append(Paragraph("AWS Pricing Analysis", self.styles['CustomHeading']))
+            story.append(Paragraph("Instance Pricing Comparison (Top 5)", self.styles['CustomSubheading']))
+            
+            for i, pricing in enumerate(pricing_data[:5], 1):
+                specs = pricing.specifications or {}
+                pricing_text = f"{i}. {pricing.instance_type} - {specs.get('vcpus', 'N/A')} vCPUs, {specs.get('ram', 'N/A')}GB RAM - ${pricing.total_monthly_cost:,.0f}/month"
+                story.append(Paragraph(pricing_text, self.styles['Normal']))
+            
+            story.append(Spacer(1, 50))
+        except Exception as e:
+            logger.error(f"Error adding pricing analysis: {e}")
+    
+    def _add_ai_recommendations(self, story, recommendation, risks, phases):
+        """Add simplified AI recommendations"""
+        if not self.reportlab_available:
+            return
+            
+        try:
+            from reportlab.platypus import Paragraph, Spacer
+            
+            story.append(Paragraph("AI-Powered Recommendations", self.styles['CustomHeading']))
+            story.append(Paragraph(f"<b>Recommendation:</b> {recommendation.recommendation}", self.styles['Normal']))
+            story.append(Paragraph(f"<b>Confidence Score:</b> {recommendation.confidence_score:.0f}%", self.styles['Normal']))
+            story.append(Paragraph(f"<b>Expected Savings:</b> ${recommendation.expected_savings:,.0f}", self.styles['Normal']))
+            story.append(Spacer(1, 50))
+        except Exception as e:
+            logger.error(f"Error adding AI recommendations: {e}")
+    
+    def _add_sql_optimization(self, story, sql_config):
+        """Add simplified SQL optimization"""
+        if not self.reportlab_available:
+            return
+            
+        try:
+            from reportlab.platypus import Paragraph, Spacer
+            
+            story.append(Paragraph("SQL Server Licensing Optimization", self.styles['CustomHeading']))
+            story.append(Paragraph(f"<b>Current Edition:</b> {sql_config.current_edition}", self.styles['Normal']))
+            story.append(Paragraph(f"<b>Licensed Cores:</b> {sql_config.current_cores_licensed}", self.styles['Normal']))
+            story.append(Paragraph(f"<b>Concurrent Users:</b> {sql_config.concurrent_users}", self.styles['Normal']))
+            story.append(Spacer(1, 50))
+        except Exception as e:
+            logger.error(f"Error adding SQL optimization: {e}")
+    
+    def _add_cost_comparison(self, story, pricing_data):
+        """Add simplified cost comparison"""
+        if not self.reportlab_available:
+            return
+            
+        try:
+            from reportlab.platypus import Paragraph, Spacer
+            
+            story.append(Paragraph("Cost Comparison & ROI Analysis", self.styles['CustomHeading']))
+            
+            cheapest = min(pricing_data, key=lambda x: x.total_monthly_cost)
+            most_expensive = max(pricing_data, key=lambda x: x.total_monthly_cost)
+            savings = most_expensive.total_monthly_cost - cheapest.total_monthly_cost
+            
+            story.append(Paragraph(f"<b>Potential Monthly Savings:</b> ${savings:,.0f}", self.styles['Normal']))
+            story.append(Paragraph(f"<b>Annual Savings:</b> ${savings * 12:,.0f}", self.styles['Normal']))
+            story.append(Spacer(1, 50))
+        except Exception as e:
+            logger.error(f"Error adding cost comparison: {e}")
+    
+    def _add_implementation_roadmap(self, story, phases):
+        """Add simplified implementation roadmap"""
+        if not self.reportlab_available:
+            return
+            
+        try:
+            from reportlab.platypus import Paragraph, Spacer
+            
+            story.append(Paragraph("Implementation Roadmap", self.styles['CustomHeading']))
+            
+            for i, phase in enumerate(phases, 1):
+                story.append(Paragraph(f"<b>Phase {i}: {phase.phase}</b>", self.styles['CustomSubheading']))
+                story.append(Paragraph(f"Duration: {phase.duration}", self.styles['Normal']))
+                story.append(Paragraph(f"Key Activities: {', '.join(phase.activities)}", self.styles['Normal']))
+                story.append(Spacer(1, 12))
+            
+            story.append(Spacer(1, 50))
+        except Exception as e:
+            logger.error(f"Error adding implementation roadmap: {e}")
+    
+    def _add_appendices(self, story, config, pricing_data, vrops_data, sql_config):
+        """Add simplified appendices"""
+        if not self.reportlab_available:
+            return
+            
+        try:
+            from reportlab.platypus import Paragraph, Spacer
+            
+            story.append(Paragraph("Analysis Configuration", self.styles['CustomHeading']))
+            story.append(Paragraph(f"<b>Target Region:</b> {config.get('region', 'Not specified')}", self.styles['Normal']))
+            story.append(Paragraph(f"<b>Workload Type:</b> {config.get('workload_type', 'Not specified')}", self.styles['Normal']))
+            story.append(Paragraph(f"<b>Analysis Date:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", self.styles['Normal']))
+            story.append(Paragraph(f"<b>Currency:</b> USD", self.styles['Normal']))
+        except Exception as e:
+            logger.error(f"Error adding appendices: {e}")
     
     def _add_title_page(self, story, config):
         """Add professional title page"""
@@ -2812,19 +3063,38 @@ class EnhancedCloudPricingOptimizer:
         """Render reports section with enhanced PDF generation options"""
         st.markdown('<div class="section-header">📄 Professional Reports & Export</div>', unsafe_allow_html=True)
         
-        st.markdown("""
-        Generate comprehensive PDF reports with detailed analysis from all sections:
+        # Check what report formats are available
+        pdf_available = self.pdf_generator.pdf_available if hasattr(self.pdf_generator, 'pdf_available') else False
         
-        **📊 Comprehensive Analysis Report Includes:**
-        - **Executive Summary** with key findings and recommendations
-        - **vRealize Operations Performance Analysis** with detailed metrics and insights
+        st.markdown(f"""
+        Generate comprehensive reports with detailed analysis from all sections:
+        
+        **📊 Available Report Formats:**
+        - ✅ **Detailed Text Reports** - Complete analysis in structured text format
+        - ✅ **CSV Data Export** - Pricing and configuration data
+        - ✅ **JSON Export** - vROps metrics and SQL configuration
+        - ✅ **ZIP Packages** - Complete dataset bundles
+        {"- ✅ **Professional PDF Reports** - Executive and technical reports with charts" if pdf_available else "- ⚠️ **PDF Reports** - Install `reportlab` for professional PDF generation"}
+        
+        **📋 Report Content Includes:**
+        - **Executive Summary** with key findings and ROI projections
+        - **vRealize Operations Analysis** with performance metrics and insights
         - **AWS Pricing Analysis** with cost comparisons and efficiency metrics
         - **AI-Powered Recommendations** with confidence scoring and risk assessment
-        - **SQL Server Licensing Optimization** with cost scenarios and savings opportunities
+        - **SQL Server Optimization** with licensing scenarios and savings opportunities
         - **Cost Comparison & ROI Analysis** with multi-year projections
         - **Implementation Roadmap** with phased approach and timelines
         - **Appendices** with complete data tables and technical specifications
         """)
+        
+        if not pdf_available:
+            st.info("""
+            💡 **Enable PDF Reports:** Install ReportLab for professional PDF generation:
+            ```bash
+            pip install reportlab
+            ```
+            Text reports provide the same comprehensive analysis in a structured format.
+            """)
         
         # Check data availability
         has_pricing = bool(st.session_state.latest_pricing)
@@ -2870,39 +3140,90 @@ class EnhancedCloudPricingOptimizer:
         col1, col2 = st.columns(2)
         
         with col1:
-            st.markdown("**📊 Generate Comprehensive Report**")
-            if st.button("📄 Generate Complete Analysis Report (PDF)", 
-                        type="primary", 
-                        use_container_width=True,
-                        help="Generate a comprehensive PDF report with all available analysis data"):
-                if has_config:
-                    with st.spinner("🔄 Generating comprehensive PDF report... This may take a moment."):
-                        try:
-                            self._generate_comprehensive_pdf_report()
-                        except Exception as e:
-                            st.error(f"❌ Error generating PDF report: {str(e)}")
-                            if "reportlab" in str(e).lower():
-                                st.info("💡 **Installation Required:** Please install reportlab for PDF generation:\n```pip install reportlab matplotlib seaborn```")
-                else:
-                    st.warning("⚠️ Please configure basic settings in the sidebar first.")
+            if pdf_available:
+                st.markdown("**📄 Generate PDF Reports**")
+                if st.button("📄 Generate Comprehensive Report (PDF)", 
+                            type="primary", 
+                            use_container_width=True,
+                            help="Generate a professional PDF report with all available analysis data"):
+                    if has_config:
+                        with st.spinner("🔄 Generating comprehensive PDF report... This may take a moment."):
+                            try:
+                                self._generate_comprehensive_pdf_report()
+                            except Exception as e:
+                                st.error(f"❌ Error generating PDF report: {str(e)}")
+                                st.info("💡 Falling back to text report generation...")
+                                self._generate_comprehensive_text_report()
+                    else:
+                        st.warning("⚠️ Please configure basic settings in the sidebar first.")
+                
+                if st.button("📋 Generate Executive Summary (PDF)", 
+                            use_container_width=True,
+                            help="Generate a concise executive summary PDF"):
+                    if has_config and (has_pricing or has_ai):
+                        with st.spinner("🔄 Generating executive summary..."):
+                            try:
+                                self._generate_executive_summary_pdf()
+                            except Exception as e:
+                                st.error(f"❌ Error generating executive summary: {str(e)}")
+                    else:
+                        st.warning("⚠️ Please complete pricing analysis or AI recommendations first.")
+            else:
+                st.markdown("**📄 Generate Text Reports**")
+                if st.button("📄 Generate Comprehensive Report (TXT)", 
+                            type="primary", 
+                            use_container_width=True,
+                            help="Generate a detailed text report with all available analysis data"):
+                    if has_config:
+                        with st.spinner("🔄 Generating comprehensive text report..."):
+                            try:
+                                self._generate_comprehensive_text_report()
+                            except Exception as e:
+                                st.error(f"❌ Error generating text report: {str(e)}")
+                    else:
+                        st.warning("⚠️ Please configure basic settings in the sidebar first.")
+                
+                if st.button("📋 Generate Executive Summary (TXT)", 
+                            use_container_width=True,
+                            help="Generate a concise executive summary in text format"):
+                    if has_config and (has_pricing or has_ai):
+                        with st.spinner("🔄 Generating executive summary..."):
+                            try:
+                                self._generate_executive_summary_text()
+                            except Exception as e:
+                                st.error(f"❌ Error generating executive summary: {str(e)}")
+                    else:
+                        st.warning("⚠️ Please complete pricing analysis or AI recommendations first.")
         
         with col2:
-            st.markdown("**📊 Generate Executive Summary**")
-            if st.button("📋 Generate Executive Summary (PDF)", 
+            st.markdown("**📊 Data Export Options**")
+            if st.button("💾 Export Complete Dataset (ZIP)", 
                         use_container_width=True,
-                        help="Generate a concise executive summary PDF"):
-                if has_config and (has_pricing or has_ai):
-                    with st.spinner("🔄 Generating executive summary..."):
+                        help="Export all analysis data in multiple formats"):
+                if self._has_sufficient_data():
+                    with st.spinner("🔄 Preparing data export..."):
                         try:
-                            self._generate_executive_summary_pdf()
+                            self._export_complete_dataset()
                         except Exception as e:
-                            st.error(f"❌ Error generating executive summary: {str(e)}")
+                            st.error(f"❌ Error creating data export: {str(e)}")
                 else:
-                    st.warning("⚠️ Please complete pricing analysis or AI recommendations first.")
+                    st.info("Insufficient data for complete export")
+            
+            if st.button("📊 Quick Data Summary (TXT)", 
+                        use_container_width=True,
+                        help="Generate a quick summary of all analysis"):
+                if has_config:
+                    with st.spinner("🔄 Generating quick summary..."):
+                        try:
+                            self._generate_quick_summary()
+                        except Exception as e:
+                            st.error(f"❌ Error generating summary: {str(e)}")
+                else:
+                    st.warning("⚠️ Please configure basic settings first.")
         
         st.markdown("---")
         
-        # Data export options
+        # Individual data exports
         st.markdown("**📊 Individual Data Exports**")
         
         col1, col2, col3 = st.columns(3)
@@ -2936,15 +3257,18 @@ class EnhancedCloudPricingOptimizer:
                     st.info("No vROps data available")
         
         with col3:
-            if st.button("📊 Export Complete Dataset (ZIP)", use_container_width=True):
-                if self._has_sufficient_data():
-                    with st.spinner("🔄 Preparing data export..."):
-                        try:
-                            self._export_complete_dataset()
-                        except Exception as e:
-                            st.error(f"❌ Error creating data export: {str(e)}")
+            if st.button("📊 Export SQL Config (JSON)", use_container_width=True):
+                if st.session_state.sql_config:
+                    json_data = json.dumps(asdict(st.session_state.sql_config), indent=2)
+                    st.download_button(
+                        "📥 Download SQL JSON",
+                        json_data,
+                        f"sql_configuration_{datetime.now().strftime('%Y%m%d')}.json",
+                        "application/json",
+                        use_container_width=True
+                    )
                 else:
-                    st.info("Insufficient data for complete export")
+                    st.info("No SQL configuration available")
         
         # Report preview section
         if has_pricing or has_vrops or has_ai:
@@ -2967,6 +3291,183 @@ class EnhancedCloudPricingOptimizer:
                 
                 st.markdown("✅ **Implementation Roadmap** - Phased migration approach")
                 st.markdown("✅ **Appendices** - Complete data tables and technical specifications")
+                
+                format_note = "PDF and Text formats" if pdf_available else "Text format"
+                st.info(f"📋 Reports available in: {format_note}")
+    
+    def _generate_comprehensive_text_report(self):
+        """Generate comprehensive text report as fallback"""
+        try:
+            # Gather all available data
+            config = st.session_state.config
+            pricing_data = st.session_state.latest_pricing or []
+            vrops_data = st.session_state.vrops_metrics
+            sql_config = st.session_state.sql_config
+            
+            # Get AI analysis data
+            recommendation = None
+            risks = []
+            phases = []
+            
+            if st.session_state.comprehensive_analysis:
+                analysis = st.session_state.comprehensive_analysis
+                recommendation = analysis.get('recommendation')
+                risks = analysis.get('risks', [])
+                phases = analysis.get('phases', [])
+            
+            # Generate default phases if none exist
+            if not phases:
+                phases = [
+                    ImplementationPhase(
+                        phase="Planning & Assessment",
+                        duration="2-4 weeks",
+                        activities=["Detailed workload analysis", "Performance baselining", "Migration planning"],
+                        dependencies=["Stakeholder approval", "AWS account setup"],
+                        deliverables=["Migration plan", "Performance baseline", "Cost projections"]
+                    ),
+                    ImplementationPhase(
+                        phase="Pilot Migration",
+                        duration="2-3 weeks",
+                        activities=["Migrate test workloads", "Performance validation", "Cost validation"],
+                        dependencies=["Phase 1 completion", "Test environment setup"],
+                        deliverables=["Pilot results", "Performance metrics", "Lessons learned"]
+                    )
+                ]
+            
+            # Generate text report
+            report_buffer = self.pdf_generator.create_comprehensive_report(
+                config, pricing_data, recommendation, risks, phases, vrops_data, sql_config
+            )
+            
+            # Offer download
+            filename = f"AWS_Migration_Analysis_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+            
+            st.download_button(
+                "📥 Download Comprehensive Report (TXT)",
+                report_buffer.getvalue(),
+                filename,
+                "text/plain",
+                use_container_width=True
+            )
+            
+            st.success("✅ Comprehensive text report generated successfully!")
+            
+            # Show report summary
+            sections_included = []
+            if config: sections_included.append("Executive Summary")
+            if vrops_data: sections_included.append("vROps Analysis")
+            if pricing_data: sections_included.append("Pricing Analysis")
+            if recommendation: sections_included.append("AI Recommendations")
+            if sql_config: sections_included.append("SQL Optimization")
+            sections_included.extend(["Cost Comparison", "Implementation Roadmap", "Configuration Details"])
+            
+            st.info(f"📊 **Report includes {len(sections_included)} sections:** {', '.join(sections_included)}")
+            
+        except Exception as e:
+            logger.error(f"Text report generation error: {e}")
+            raise e
+    
+    def _generate_executive_summary_text(self):
+        """Generate executive summary in text format"""
+        try:
+            config = st.session_state.config
+            pricing_data = st.session_state.latest_pricing or []
+            recommendation = None
+            
+            if st.session_state.comprehensive_analysis:
+                recommendation = st.session_state.comprehensive_analysis.get('recommendation')
+            
+            # Create executive summary content
+            summary = f"""AWS MIGRATION ANALYSIS - EXECUTIVE SUMMARY
+========================================
+Generated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}
+
+KEY FINDINGS AND RECOMMENDATIONS
+===============================
+"""
+            
+            if recommendation:
+                summary += f"""
+PRIMARY RECOMMENDATION:
+{recommendation.recommendation}
+
+CONFIDENCE LEVEL: {recommendation.confidence_score:.0f}%
+EXPECTED ANNUAL SAVINGS: ${recommendation.expected_savings:,.0f}
+COST IMPACT: {recommendation.cost_impact}
+
+REASONING:
+{recommendation.reasoning}
+"""
+            
+            if pricing_data:
+                cheapest = min(pricing_data, key=lambda x: x.total_monthly_cost)
+                most_expensive = max(pricing_data, key=lambda x: x.total_monthly_cost)
+                summary += f"""
+
+COST ANALYSIS SUMMARY
+====================
+RECOMMENDED INSTANCE: {cheapest.instance_type}
+OPTIMAL MONTHLY COST: ${cheapest.total_monthly_cost:,.0f}
+POTENTIAL MONTHLY SAVINGS: ${most_expensive.total_monthly_cost - cheapest.total_monthly_cost:,.0f}
+ANNUAL SAVINGS POTENTIAL: ${(most_expensive.total_monthly_cost - cheapest.total_monthly_cost) * 12:,.0f}
+"""
+            
+            summary += f"""
+
+ANALYSIS CONFIGURATION
+=====================
+TARGET REGION: {config.get('region', 'Not specified')}
+WORKLOAD TYPE: {config.get('workload_type', 'Not specified')}
+ANALYSIS DATE: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+NEXT STEPS
+==========
+1. Review detailed technical analysis
+2. Validate recommendations with stakeholders  
+3. Plan pilot migration phase
+4. Execute phased migration approach
+5. Monitor and optimize post-migration
+
+This executive summary provides high-level findings. Refer to the 
+comprehensive report for detailed analysis and implementation guidance.
+"""
+            
+            filename = f"AWS_Executive_Summary_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+            
+            st.download_button(
+                "📥 Download Executive Summary (TXT)",
+                summary,
+                filename,
+                "text/plain",
+                use_container_width=True
+            )
+            
+            st.success("✅ Executive summary generated successfully!")
+            
+        except Exception as e:
+            logger.error(f"Executive summary generation error: {e}")
+            raise e
+    
+    def _generate_quick_summary(self):
+        """Generate a quick summary of all analysis"""
+        try:
+            summary = self._create_text_summary()
+            
+            filename = f"AWS_Quick_Summary_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+            
+            st.download_button(
+                "📥 Download Quick Summary (TXT)",
+                summary,
+                filename,
+                "text/plain",
+                use_container_width=True
+            )
+            
+            st.success("✅ Quick summary generated successfully!")
+            
+        except Exception as e:
+            logger.error(f"Quick summary generation error: {e}")
+            raise e
     
     def _generate_comprehensive_pdf_report(self):
         """Generate comprehensive PDF report with all analysis"""
@@ -3263,34 +3764,66 @@ def main():
     try:
         # Check for required dependencies
         missing_deps = []
+        available_features = []
         
+        # Check core dependencies (these are always required)
+        core_deps = ['streamlit', 'pandas', 'boto3', 'plotly', 'requests']
+        
+        # Check optional dependencies for enhanced features
         try:
             import reportlab
+            available_features.append("📄 PDF Report Generation")
         except ImportError:
             missing_deps.append("reportlab")
         
         try:
             import matplotlib
+            available_features.append("📊 Enhanced Chart Generation")
         except ImportError:
             missing_deps.append("matplotlib")
         
         try:
             import seaborn
+            available_features.append("🎨 Advanced Data Visualization")
         except ImportError:
             missing_deps.append("seaborn")
         
-        # Show dependency warning if needed
+        # Always available features
+        always_available = [
+            "☁️ AWS Pricing Analysis",
+            "📊 vROps Performance Analysis", 
+            "🤖 AI-Powered Recommendations",
+            "🗃️ SQL Server Optimization",
+            "📈 Cost Comparison Analysis",
+            "📋 CSV/JSON Data Export",
+            "📝 Text Report Generation"
+        ]
+        
+        # Show dependency status if there are missing deps
         if missing_deps:
-            st.warning(f"""
-            ⚠️ **Optional Dependencies Missing**
+            st.info(f"""
+            ℹ️ **Optional Dependencies Status**
             
-            For full PDF report functionality, please install: {', '.join(missing_deps)}
+            **✅ Available Features:**
+            {chr(10).join([f"  • {feature}" for feature in always_available + available_features])}
             
+            **⚠️ Additional Features Available with Optional Dependencies:**
+            {chr(10).join([f"  • Professional PDF Reports (requires: reportlab)" if "reportlab" in missing_deps else "",
+                          f"  • Enhanced Charts & Visualizations (requires: matplotlib, seaborn)" if any(dep in missing_deps for dep in ['matplotlib', 'seaborn']) else ""])}
+            
+            **💡 To enable all features, install:**
             ```bash
             pip install {' '.join(missing_deps)}
             ```
             
-            The application will work with limited functionality (text exports only).
+            **The application provides full analysis functionality with currently available dependencies.**
+            """)
+        else:
+            st.success(f"""
+            ✅ **All Dependencies Available - Full Feature Set Enabled**
+            
+            **Available Features:**
+            {chr(10).join([f"  • {feature}" for feature in always_available + available_features])}
             """)
         
         # Initialize the application
@@ -3299,13 +3832,17 @@ def main():
         # Render the main interface
         optimizer.render_main_interface()
         
-        # Footer with version info
+        # Footer with version info and dependency status
         st.markdown("---")
-        st.markdown("""
+        
+        feature_count = len(always_available) + len(available_features)
+        total_possible = len(always_available) + 3  # 3 optional features
+        
+        st.markdown(f"""
         <div style="text-align: center; color: #6c757d; font-size: 0.9rem; padding: 1rem;">
-            <strong>Enhanced AWS Cloud Pricing Optimizer v4.0</strong><br>
+            <strong>Enhanced AWS Cloud Pricing Optimizer v4.1</strong><br>
             Professional AWS Migration Analysis with vRealize Operations & SQL Server Optimization<br>
-            <small>Real-time AWS pricing integration with AI-powered recommendations and comprehensive PDF reporting</small>
+            <small>🚀 {feature_count}/{total_possible} features enabled • Real-time AWS pricing • AI-powered recommendations • Comprehensive reporting</small>
         </div>
         """, unsafe_allow_html=True)
         
@@ -3330,13 +3867,23 @@ def main():
         
         1. **Refresh the page** and try again
         2. **Clear browser cache** if issues persist  
-        3. **Check dependencies** - ensure all required packages are installed
+        3. **Check dependencies** - install missing packages if needed
         4. **Verify credentials** in Streamlit secrets (if using live APIs)
         5. **Contact support** if the issue continues
         
-        **Required Dependencies:**
+        **Core Dependencies (Required):**
         ```bash
-        pip install streamlit pandas boto3 plotly asyncio aiohttp reportlab matplotlib seaborn
+        pip install streamlit pandas boto3 plotly requests asyncio aiohttp
+        ```
+        
+        **Optional Dependencies (Enhanced Features):**
+        ```bash
+        pip install reportlab matplotlib seaborn
+        ```
+        
+        **Quick Install All:**
+        ```bash
+        pip install streamlit pandas boto3 plotly requests asyncio aiohttp reportlab matplotlib seaborn
         ```
         """)
 
