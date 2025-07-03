@@ -31,50 +31,60 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Enhanced Professional CSS styling
+# Enhanced Professional CSS styling - Fixed Layout
 st.markdown("""
 <style>
+    /* Reset any potential layout conflicts */
+    .stApp > div:first-child {
+        padding-top: 0 !important;
+    }
+    
     .main-header {
         background: linear-gradient(135deg, #1f4e79 0%, #2c5aa0 100%);
         color: white;
-        padding: 2.5rem;
-        border-radius: 12px;
+        padding: 2rem;
+        border-radius: 10px;
         text-align: center;
-        margin-bottom: 2rem;
-        box-shadow: 0 4px 20px rgba(31, 78, 121, 0.3);
+        margin: 1rem 0 2rem 0;
+        box-shadow: 0 4px 15px rgba(31, 78, 121, 0.2);
+        width: 100%;
+        box-sizing: border-box;
     }
     
     .main-header h1 {
         margin: 0;
-        font-size: 2.5rem;
+        font-size: 2.2rem;
         font-weight: 600;
+        line-height: 1.2;
     }
     
     .main-header p {
         margin: 0.5rem 0 0 0;
-        font-size: 1.1rem;
+        font-size: 1rem;
         opacity: 0.9;
+        line-height: 1.4;
     }
     
     .metric-card {
         background: white;
-        padding: 1.8rem;
-        border-radius: 12px;
-        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+        padding: 1.5rem;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
         border-left: 4px solid #4a90e2;
-        margin: 1rem 0;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        margin: 0.8rem 0;
+        width: 100%;
+        box-sizing: border-box;
+        transition: box-shadow 0.2s ease;
     }
     
     .metric-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
     }
     
     .metric-card h3 {
         color: #343a40;
         margin: 0 0 0.5rem 0;
-        font-size: 0.9rem;
+        font-size: 0.85rem;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.5px;
@@ -83,67 +93,82 @@ st.markdown("""
     .metric-card h2 {
         color: #1f4e79;
         margin: 0;
-        font-size: 2rem;
+        font-size: 1.8rem;
         font-weight: 700;
+    }
+    
+    .metric-card p {
+        margin: 0.3rem 0 0 0;
+        color: #6c757d;
+        font-size: 0.9rem;
     }
     
     .vrops-section {
         background: linear-gradient(135deg, #7b68ee 0%, #6a5acd 100%);
         color: white;
-        padding: 2rem;
-        border-radius: 12px;
-        margin: 1.5rem 0;
-        box-shadow: 0 4px 20px rgba(123, 104, 238, 0.3);
+        padding: 1.8rem;
+        border-radius: 10px;
+        margin: 1.2rem 0;
+        box-shadow: 0 4px 15px rgba(123, 104, 238, 0.2);
+        width: 100%;
+        box-sizing: border-box;
     }
     
     .vrops-section h3 {
         margin: 0 0 1rem 0;
-        font-size: 1.3rem;
+        font-size: 1.2rem;
         font-weight: 600;
     }
     
     .sql-optimization {
         background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%);
         color: white;
-        padding: 2rem;
-        border-radius: 12px;
-        margin: 1.5rem 0;
-        box-shadow: 0 4px 20px rgba(32, 201, 151, 0.3);
+        padding: 1.8rem;
+        border-radius: 10px;
+        margin: 1.2rem 0;
+        box-shadow: 0 4px 15px rgba(32, 201, 151, 0.2);
+        width: 100%;
+        box-sizing: border-box;
     }
     
     .sql-optimization h3 {
         margin: 0 0 1rem 0;
-        font-size: 1.3rem;
+        font-size: 1.2rem;
         font-weight: 600;
     }
     
     .ai-recommendation {
         background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
         color: white;
-        padding: 2rem;
-        border-radius: 12px;
-        margin: 1.5rem 0;
-        box-shadow: 0 4px 20px rgba(74, 144, 226, 0.3);
+        padding: 1.8rem;
+        border-radius: 10px;
+        margin: 1.2rem 0;
+        box-shadow: 0 4px 15px rgba(74, 144, 226, 0.2);
+        width: 100%;
+        box-sizing: border-box;
     }
     
     .ai-recommendation h3 {
         margin: 0 0 1rem 0;
-        font-size: 1.3rem;
+        font-size: 1.2rem;
         font-weight: 600;
     }
     
     .cost-savings {
         background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
         color: white;
-        padding: 1.8rem;
-        border-radius: 12px;
+        padding: 1.5rem;
+        border-radius: 10px;
         text-align: center;
-        box-shadow: 0 4px 20px rgba(40, 167, 69, 0.3);
+        box-shadow: 0 4px 15px rgba(40, 167, 69, 0.2);
+        margin: 1rem 0;
+        width: 100%;
+        box-sizing: border-box;
     }
     
     .cost-savings h3 {
         margin: 0 0 0.5rem 0;
-        font-size: 0.9rem;
+        font-size: 0.85rem;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.5px;
@@ -152,36 +177,8 @@ st.markdown("""
     
     .cost-savings h2 {
         margin: 0;
-        font-size: 2rem;
+        font-size: 1.8rem;
         font-weight: 700;
-    }
-    
-    .status-badge {
-        display: inline-block;
-        padding: 0.4rem 0.8rem;
-        border-radius: 20px;
-        font-size: 0.8rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-    
-    .status-success {
-        background: #d4edda;
-        color: #155724;
-        border: 1px solid #c3e6cb;
-    }
-    
-    .status-warning {
-        background: #fff3cd;
-        color: #856404;
-        border: 1px solid #ffeaa7;
-    }
-    
-    .status-error {
-        background: #f8d7da;
-        color: #721c24;
-        border: 1px solid #f5c6cb;
     }
     
     .section-header {
@@ -191,53 +188,47 @@ st.markdown("""
         margin: 1.5rem 0 1rem 0;
         padding-bottom: 0.5rem;
         border-bottom: 2px solid #e9ecef;
-    }
-    
-    .vrops-metrics {
-        background: #f8f9fa;
-        border: 2px solid #7b68ee;
-        border-radius: 12px;
-        padding: 1.5rem;
-        margin: 1rem 0;
-    }
-    
-    .sql-licensing {
-        background: #f8f9fa;
-        border: 2px solid #20c997;
-        border-radius: 12px;
-        padding: 1.5rem;
-        margin: 1rem 0;
+        width: 100%;
+        box-sizing: border-box;
     }
     
     .optimization-insight {
         background: #e7f3ff;
         border-left: 4px solid #4a90e2;
         padding: 1rem;
-        margin: 1rem 0;
+        margin: 0.8rem 0;
         border-radius: 4px;
+        width: 100%;
+        box-sizing: border-box;
     }
     
     .performance-warning {
         background: #fff3cd;
         border-left: 4px solid #ffc107;
         padding: 1rem;
-        margin: 1rem 0;
+        margin: 0.8rem 0;
         border-radius: 4px;
+        width: 100%;
+        box-sizing: border-box;
     }
     
     .performance-critical {
         background: #f8d7da;
         border-left: 4px solid #dc3545;
         padding: 1rem;
-        margin: 1rem 0;
+        margin: 0.8rem 0;
         border-radius: 4px;
+        width: 100%;
+        box-sizing: border-box;
     }
     
     .connection-status {
         padding: 1rem;
         border-radius: 8px;
-        margin: 1rem 0;
+        margin: 0.8rem 0;
         border-left: 4px solid;
+        width: 100%;
+        box-sizing: border-box;
     }
     
     .connection-success {
@@ -256,6 +247,21 @@ st.markdown("""
         background: #f8d7da;
         border-color: #dc3545;
         color: #721c24;
+    }
+    
+    /* Ensure proper column alignment */
+    .stColumn {
+        padding: 0 !important;
+    }
+    
+    /* Fix any text alignment issues */
+    .stMarkdown {
+        text-align: left;
+    }
+    
+    /* Ensure dataframes fit properly */
+    .stDataFrame {
+        width: 100%;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -1061,6 +1067,9 @@ class EnhancedCloudPricingOptimizer:
         # Sidebar configuration
         self.render_sidebar()
         
+        # Add some spacing for better layout
+        st.markdown("<br>", unsafe_allow_html=True)
+        
         # Main content tabs
         tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
             "📊 vROps Metrics", 
@@ -1347,10 +1356,11 @@ class EnhancedCloudPricingOptimizer:
         
         config = st.session_state.config
         
-        # Pricing Analysis Button
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            st.write("💡 Analyze AWS pricing options based on your workload requirements and vROps metrics.")
+        # Pricing Analysis Description and Button
+        st.write("💡 Analyze AWS pricing options based on your workload requirements and vROps metrics.")
+        
+        # Center the button
+        col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
             if st.button("🔍 Analyze Pricing", type="primary", use_container_width=True):
                 with st.spinner("Fetching AWS pricing data..."):
@@ -1405,7 +1415,7 @@ class EnhancedCloudPricingOptimizer:
         """Display pricing analysis results with enhanced formatting"""
         st.markdown("**💰 Pricing Analysis Results**")
         
-        # Create pricing comparison table
+        # Create pricing comparison table with proper formatting
         table_data = []
         for pricing in pricing_data[:10]:  # Show top 10
             specs = pricing.specifications or {}
@@ -1426,11 +1436,19 @@ class EnhancedCloudPricingOptimizer:
                 'Family': specs.get('family', 'Unknown')
             })
         
+        # Create DataFrame and display with proper container
         df = pd.DataFrame(table_data)
-        st.dataframe(df, use_container_width=True)
+        
+        # Display table with full width
+        st.dataframe(
+            df, 
+            use_container_width=True,
+            hide_index=True
+        )
         
         # Cost visualization
-        self.render_pricing_chart(pricing_data[:8])
+        if len(pricing_data) > 0:
+            self.render_pricing_chart(pricing_data[:8])
 
     def render_pricing_chart(self, pricing_data: List):
         """Render enhanced pricing comparison chart"""
@@ -1534,16 +1552,17 @@ class EnhancedCloudPricingOptimizer:
             st.info("⚠️ Please complete pricing analysis first to get AI recommendations.")
             return
         
-        # AI Analysis Button
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            st.write("🧠 Get intelligent migration recommendations based on your vROps data and pricing analysis.")
+        # AI Analysis Description and Button
+        st.write("🧠 Get intelligent migration recommendations based on your vROps data and pricing analysis.")
+        
+        # Center the button
+        col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
             if st.button("🚀 Get AI Analysis", type="primary", use_container_width=True):
                 with st.spinner("Generating AI recommendations..."):
                     self.generate_ai_recommendations()
 
-    async def generate_ai_recommendations(self):
+    def generate_ai_recommendations(self):
         """Generate and display AI recommendations"""
         config = st.session_state.config
         pricing_data = st.session_state.latest_pricing
@@ -1551,8 +1570,10 @@ class EnhancedCloudPricingOptimizer:
         sql_config = st.session_state.sql_config
         
         try:
-            # Get AI analysis
-            analysis_result = await self.claude_ai.get_comprehensive_analysis(config, pricing_data, vrops_data, sql_config)
+            # Get AI analysis using asyncio
+            analysis_result = asyncio.run(
+                self.claude_ai.get_comprehensive_analysis(config, pricing_data, vrops_data, sql_config)
+            )
             
             if analysis_result and len(analysis_result) >= 5:
                 recommendation, risks, phases, vrops_insights, sql_optimization = analysis_result
@@ -1643,21 +1664,17 @@ class EnhancedCloudPricingOptimizer:
         # Cost comparison options
         st.markdown("**💰 Cost Scenarios Comparison**")
         
-        # Select instances for comparison
-        col1, col2 = st.columns([2, 1])
+        # Select instances for comparison - single column layout to avoid shifts
+        selected_instances = st.multiselect(
+            "Select instances to compare:",
+            [p.instance_type for p in pricing_data],
+            default=[p.instance_type for p in pricing_data[:3]]
+        )
         
-        with col1:
-            selected_instances = st.multiselect(
-                "Select instances to compare:",
-                [p.instance_type for p in pricing_data],
-                default=[p.instance_type for p in pricing_data[:3]]
-            )
-        
-        with col2:
-            comparison_period = st.selectbox(
-                "Comparison Period:",
-                ["Monthly", "Annual", "3-Year Total"]
-            )
+        comparison_period = st.selectbox(
+            "Comparison Period:",
+            ["Monthly", "Annual", "3-Year Total"]
+        )
         
         if selected_instances:
             self.render_cost_comparison_chart(pricing_data, selected_instances, comparison_period)
