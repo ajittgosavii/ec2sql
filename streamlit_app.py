@@ -262,6 +262,162 @@ st.markdown("""
         color: #721c24;
     }
     
+    /* Round Button Status Indicators */
+    .status-container {
+        display: flex;
+        align-items: center;
+        justify-content: space-around;
+        gap: 20px;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 15px;
+        margin: 15px 0;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        flex-wrap: wrap;
+    }
+    
+    .status-button {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 20px;
+        border-radius: 30px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        border: 2px solid;
+        min-width: 200px;
+        justify-content: flex-start;
+        cursor: default;
+    }
+    
+    .status-button-connected {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+        border-color: #28a745;
+        box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+    }
+    
+    .status-button-connected:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+    }
+    
+    .status-button-disconnected {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        color: white;
+        border-color: #dc3545;
+        box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
+    }
+    
+    .status-button-demo {
+        background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
+        color: #212529;
+        border-color: #ffc107;
+        box-shadow: 0 4px 15px rgba(255, 193, 7, 0.3);
+        font-weight: 700;
+    }
+    
+    .status-indicator {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        position: relative;
+        flex-shrink: 0;
+    }
+    
+    .status-indicator.connected {
+        background: #ffffff;
+        box-shadow: 0 0 10px rgba(255, 255, 255, 0.9);
+        animation: pulse-green 2s infinite;
+    }
+    
+    .status-indicator.disconnected {
+        background: #ffffff;
+        opacity: 0.7;
+    }
+    
+    .status-indicator.demo {
+        background: #212529;
+        animation: pulse-orange 2s infinite;
+    }
+    
+    .status-text {
+        display: flex;
+        flex-direction: column;
+        line-height: 1.2;
+    }
+    
+    .status-text strong {
+        font-size: 0.95rem;
+    }
+    
+    .status-text small {
+        font-size: 0.75rem;
+        opacity: 0.9;
+        margin-top: 2px;
+    }
+    
+    @keyframes pulse-green {
+        0% {
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.9);
+        }
+        50% {
+            box-shadow: 0 0 20px rgba(255, 255, 255, 1), 0 0 30px rgba(255, 255, 255, 0.5);
+        }
+        100% {
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.9);
+        }
+    }
+    
+    @keyframes pulse-orange {
+        0% {
+            box-shadow: 0 0 10px rgba(33, 37, 41, 0.8);
+        }
+        50% {
+            box-shadow: 0 0 20px rgba(33, 37, 41, 1), 0 0 30px rgba(33, 37, 41, 0.5);
+        }
+        100% {
+            box-shadow: 0 0 10px rgba(33, 37, 41, 0.8);
+        }
+    }
+    
+    .demo-mode-banner {
+        background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+        color: white;
+        padding: 15px 25px;
+        border-radius: 12px;
+        margin: 15px 0;
+        text-align: center;
+        font-weight: 600;
+        font-size: 1rem;
+        box-shadow: 0 4px 15px rgba(23, 162, 184, 0.3);
+        animation: demo-glow 3s infinite alternate;
+    }
+    
+    @keyframes demo-glow {
+        0% {
+            box-shadow: 0 4px 15px rgba(23, 162, 184, 0.3);
+        }
+        100% {
+            box-shadow: 0 4px 25px rgba(23, 162, 184, 0.5);
+        }
+    }
+    
+    /* Responsive design for status buttons */
+    @media (max-width: 768px) {
+        .status-container {
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .status-button {
+            min-width: 250px;
+            justify-content: center;
+        }
+    }
+    
     /* Ensure proper column alignment */
     .stColumn {
         padding: 0 !important;
@@ -1753,11 +1909,7 @@ class EnhancedCloudPricingOptimizer:
         </div>
         """, unsafe_allow_html=True)
         
-        # Demo mode notice
-        if st.session_state.demo_mode:
-            st.info("🚀 Running in Demo Mode - Using sample data for demonstration")
-        
-        # Connection status
+        # Connection status with round buttons
         self.render_connection_status()
         
         # Sidebar configuration
@@ -1795,49 +1947,93 @@ class EnhancedCloudPricingOptimizer:
             self.render_reports()
     
     def render_connection_status(self):
-        """Render enhanced connection status"""
+        """Render enhanced connection status with round button indicators"""
+        # Demo mode banner
+        if st.session_state.demo_mode:
+            st.markdown("""
+            <div class="demo-mode-banner">
+                🚀 Demo Mode Active - Using enhanced sample data for demonstration
+            </div>
+            """, unsafe_allow_html=True)
+        
         if 'connection_status' not in st.session_state:
             return
         
         connection_status = st.session_state.connection_status
         
-        # AWS Status
+        # Connection status container
+        st.markdown('<div class="status-container">', unsafe_allow_html=True)
+        
+        # AWS Status Button
         aws_status = connection_status.get('aws', {})
         if aws_status.get('connected'):
             st.markdown("""
-            <div class="connection-status connection-success">
-                <strong>✅ AWS Pricing API</strong><br>
-                Connected and ready for live pricing data.
+            <div class="status-button status-button-connected">
+                <div class="status-indicator connected"></div>
+                <div class="status-text">
+                    <strong>AWS Pricing API</strong>
+                    <small>Live data ready</small>
+                </div>
             </div>
             """, unsafe_allow_html=True)
         else:
-            error_msg = aws_status.get('error', 'Unknown connection error')
-            st.markdown(f"""
-            <div class="connection-status connection-warning">
-                <strong>⚠️ AWS Pricing API</strong><br>
-                {error_msg}<br>
-                <small>Using demo data for demonstration purposes.</small>
+            st.markdown("""
+            <div class="status-button status-button-demo">
+                <div class="status-indicator demo"></div>
+                <div class="status-text">
+                    <strong>AWS Pricing API</strong>
+                    <small>Demo mode</small>
+                </div>
             </div>
             """, unsafe_allow_html=True)
         
-        # Claude Status
+        # Claude Status Button
         claude_status = connection_status.get('claude', {})
         if claude_status.get('connected'):
             st.markdown("""
-            <div class="connection-status connection-success">
-                <strong>✅ Claude AI API</strong><br>
-                Connected and ready for intelligent recommendations.
+            <div class="status-button status-button-connected">
+                <div class="status-indicator connected"></div>
+                <div class="status-text">
+                    <strong>Claude AI API</strong>
+                    <small>AI insights ready</small>
+                </div>
             </div>
             """, unsafe_allow_html=True)
         else:
-            error_msg = claude_status.get('error', 'Unknown connection error')
-            st.markdown(f"""
-            <div class="connection-status connection-warning">
-                <strong>⚠️ Claude AI API</strong><br>
-                {error_msg}<br>
-                <small>Using enhanced mock recommendations.</small>
+            st.markdown("""
+            <div class="status-button status-button-demo">
+                <div class="status-indicator demo"></div>
+                <div class="status-text">
+                    <strong>Claude AI API</strong>
+                    <small>Enhanced mock analysis</small>
+                </div>
             </div>
             """, unsafe_allow_html=True)
+        
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+        # Optional: Show detailed error information in an expander for debugging
+        if not aws_status.get('connected') or not claude_status.get('connected'):
+            with st.expander("🔧 Connection Details", expanded=False):
+                if not aws_status.get('connected'):
+                    error_msg = aws_status.get('error', 'Unknown connection error')
+                    st.info(f"**AWS Status:** {error_msg}")
+                
+                if not claude_status.get('connected'):
+                    error_msg = claude_status.get('error', 'Unknown connection error')
+                    st.info(f"**Claude Status:** {error_msg}")
+                
+                st.markdown("""
+                **💡 To enable live API connections:**
+                1. Add AWS credentials to Streamlit secrets
+                2. Add Claude API key to Streamlit secrets
+                3. Restart the application
+                
+                **Current mode provides full functionality with enhanced demo data.**
+                """)
+        
+        # Add spacing after status section
+        st.markdown("<br>", unsafe_allow_html=True)
     
     def render_sidebar(self):
         """Render sidebar configuration"""
@@ -2078,7 +2274,7 @@ class EnhancedCloudPricingOptimizer:
                 status_text = st.empty()
                 
                 for i, instance_type in enumerate(instance_types):
-                    status_text.text(f"Fetching pricing for {instance_type}...")
+                    status_text.text(f"Fetching live pricing for {instance_type}...")
                     pricing = self.aws_pricing.get_enhanced_ec2_pricing(instance_type, config['region'], vrops_data)
                     if pricing:
                         pricing_data.append(pricing)
@@ -2091,7 +2287,7 @@ class EnhancedCloudPricingOptimizer:
             if not pricing_data or st.session_state.demo_mode:
                 pricing_data = self.mock_data.get_enhanced_sample_pricing_data(config['region'], vrops_data)
                 if st.session_state.demo_mode:
-                    st.info("📊 Displaying enhanced demo data with vROps optimizations")
+                    st.success("📊 Enhanced demo pricing data loaded with vROps optimizations")
                 else:
                     st.warning("⚠️ Using demo data - AWS API data not available")
             
