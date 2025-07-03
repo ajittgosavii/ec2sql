@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 # Page configuration
 st.set_page_config(
-    page_title="AWS Cloud Pricing Optimizer with vROps & SQL Optimization",
+    page_title="AWS SQL EC2 Pricing Optimizer with vROps & SQL Optimization",
     page_icon="☁️",
     layout="wide",
     initial_sidebar_state="expanded"
