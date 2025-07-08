@@ -247,15 +247,22 @@ st.markdown("""
 
 @dataclass
 class VRopsMetrics:
-    """Data class for vROps performance metrics"""
-    # CPU Metrics
+    """Enhanced data class for vROps performance metrics with actual sizing"""
+    
+    # Current Infrastructure Sizing
+    current_vcpus: int = 8
+    current_ram_gb: float = 32.0
+    current_storage_gb: float = 500.0
+    vm_count: int = 1
+    
+    # CPU Metrics (Percentages)
     cpu_usage_avg: float = 0.0
     cpu_usage_peak: float = 0.0
     cpu_usage_95th: float = 0.0
     cpu_ready_avg: float = 0.0
     cpu_costop_avg: float = 0.0
     
-    # Memory Metrics
+    # Memory Metrics (Percentages)
     memory_usage_avg: float = 0.0
     memory_usage_peak: float = 0.0
     memory_usage_95th: float = 0.0
@@ -284,6 +291,56 @@ class VRopsMetrics:
     # Time-based metrics
     collection_period_days: int = 30
     data_completeness: float = 100.0
+    
+    # Calculated Properties
+    @property
+    def actual_cpu_cores_used_avg(self) -> float:
+        """Calculate actual CPU cores used on average"""
+        return (self.current_vcpus * self.cpu_usage_avg / 100)
+    
+    @property
+    def actual_cpu_cores_used_peak(self) -> float:
+        """Calculate actual CPU cores used at peak"""
+        return (self.current_vcpus * self.cpu_usage_peak / 100)
+    
+    @property
+    def actual_ram_gb_used_avg(self) -> float:
+        """Calculate actual RAM GB used on average"""
+        return (self.current_ram_gb * self.memory_usage_avg / 100)
+    
+    @property
+    def actual_ram_gb_used_peak(self) -> float:
+        """Calculate actual RAM GB used at peak"""
+        return (self.current_ram_gb * self.memory_usage_peak / 100)
+    
+    @property
+    def recommended_cpu_cores(self) -> int:
+        """Recommend CPU cores with 20% headroom above peak usage"""
+        return max(2, math.ceil(self.actual_cpu_cores_used_peak * 1.2))
+    
+    @property
+    def recommended_ram_gb(self) -> int:
+        """Recommend RAM with 25% headroom above peak usage"""
+        return max(8, math.ceil(self.actual_ram_gb_used_peak * 1.25))
+    
+    @property
+    def sizing_efficiency_score(self) -> float:
+        """Calculate efficiency score (0-100) based on utilization"""
+        cpu_efficiency = min(100, (self.cpu_usage_avg / 70) * 100)  # 70% is considered optimal
+        memory_efficiency = min(100, (self.memory_usage_avg / 80) * 100)  # 80% is considered optimal
+        return (cpu_efficiency + memory_efficiency) / 2
+    
+    @property
+    def rightsizing_opportunity(self) -> str:
+        """Determine rightsizing opportunity"""
+        if self.cpu_usage_avg < 30 and self.memory_usage_avg < 50:
+            return "Significant downsizing opportunity"
+        elif self.cpu_usage_avg < 50 and self.memory_usage_avg < 70:
+            return "Moderate downsizing opportunity"
+        elif self.cpu_usage_avg > 80 or self.memory_usage_avg > 85:
+            return "Consider upsizing for better performance"
+        else:
+            return "Current sizing appears appropriate"
 
 @dataclass 
 class SQLServerConfig:
@@ -603,6 +660,8 @@ class ClaudeAIService:
         - CPU Ready: {vrops_data.cpu_ready_avg:.1f}%
         - Memory Balloon: {vrops_data.memory_balloon_avg:.1f}%
         - Disk Latency: {vrops_data.disk_latency_avg:.1f}ms
+        - Current Sizing: {vrops_data.current_vcpus} vCPUs, {vrops_data.current_ram_gb} GB RAM
+        - Actual Usage: {vrops_data.actual_cpu_cores_used_avg:.1f} CPU cores, {vrops_data.actual_ram_gb_used_avg:.1f} GB RAM
         """
     
     def _format_sql_config(self, sql_config):
@@ -708,51 +767,105 @@ class MockDataService:
     """Mock data service for demonstration with enhanced realistic data"""
     
     def get_enhanced_sample_pricing_data(self, region: str, vrops_data=None):
-        """Generate enhanced sample pricing data with more realistic calculations"""
-        instances = [
-            ('m5.large', 2, 8, 0.192),
-            ('m5.xlarge', 4, 16, 0.384),
-            ('m5.2xlarge', 8, 32, 0.768),
-            ('m5.4xlarge', 16, 64, 1.536),
-            ('r5.large', 2, 16, 0.252),
-            ('r5.xlarge', 4, 32, 0.504),
-            ('r5.2xlarge', 8, 64, 1.008),
-            ('r5.4xlarge', 16, 128, 2.016),
-            ('m6a.large', 2, 8, 0.173),
-            ('m6a.xlarge', 4, 16, 0.346),
-            ('c5.large', 2, 4, 0.170),
-            ('c5.xlarge', 4, 8, 0.340),
-            ('c5.2xlarge', 8, 16, 0.680),
-            ('c5.4xlarge', 16, 32, 1.360)
+        """Generate enhanced sample pricing data with rightsizing based on actual usage"""
+        
+        # Base instance configurations (instance_type, vcpus, ram, base_price)
+        all_instances = [
+            ('t3.medium', 2, 4, 0.0416),
+            ('t3.large', 2, 8, 0.0832),
+            ('t3.xlarge', 4, 16, 0.1664),
+            ('t3.2xlarge', 8, 32, 0.3328),
+            ('m5.large', 2, 8, 0.096),
+            ('m5.xlarge', 4, 16, 0.192),
+            ('m5.2xlarge', 8, 32, 0.384),
+            ('m5.4xlarge', 16, 64, 0.768),
+            ('r5.large', 2, 16, 0.126),
+            ('r5.xlarge', 4, 32, 0.252),
+            ('r5.2xlarge', 8, 64, 0.504),
+            ('r5.4xlarge', 16, 128, 1.008),
+            ('m6a.large', 2, 8, 0.0864),
+            ('m6a.xlarge', 4, 16, 0.1728),
+            ('m6a.2xlarge', 8, 32, 0.3456),
+            ('c5.large', 2, 4, 0.085),
+            ('c5.xlarge', 4, 8, 0.17),
+            ('c5.2xlarge', 8, 16, 0.34),
+            ('c5.4xlarge', 16, 32, 0.68)
         ]
         
-        pricing_data = []
-        for instance_type, vcpus, ram, base_price in instances:
-            sql_cores = max(4, vcpus)
-            sql_licensing_cost = sql_cores * (3717 / 12)
+        # Filter instances based on vROps data if available
+        filtered_instances = all_instances
+        
+        if vrops_data:
+            # Calculate required resources with headroom
+            min_cpu_required = vrops_data.recommended_cpu_cores
+            min_ram_required = vrops_data.recommended_ram_gb
             
+            # Filter instances that meet minimum requirements
+            filtered_instances = [
+                (instance_type, vcpus, ram, price) 
+                for instance_type, vcpus, ram, price in all_instances
+                if vcpus >= min_cpu_required and ram >= min_ram_required
+            ]
+            
+            # If no instances meet requirements, include slightly smaller ones
+            if not filtered_instances:
+                filtered_instances = [
+                    (instance_type, vcpus, ram, price) 
+                    for instance_type, vcpus, ram, price in all_instances
+                    if vcpus >= min_cpu_required * 0.8 and ram >= min_ram_required * 0.8
+                ]
+        
+        pricing_data = []
+        
+        for instance_type, vcpus, ram, base_price in filtered_instances:
+            # Calculate SQL licensing (minimum 4 cores)
+            sql_cores = max(4, vcpus)
+            sql_licensing_cost = sql_cores * (3717 / 12)  # Monthly cost per core
+            
+            # Windows licensing multiplier
             windows_multiplier = 4.2
             infrastructure_hourly = base_price * windows_multiplier
             infrastructure_monthly = infrastructure_hourly * 730
             
+            # Apply efficiency scoring if vROps data available
+            if vrops_data:
+                # Calculate efficiency score for this instance size
+                cpu_utilization_projected = (vrops_data.actual_cpu_cores_used_avg / vcpus) * 100
+                ram_utilization_projected = (vrops_data.actual_ram_gb_used_avg / ram) * 100
+                
+                # Efficiency scoring - prefer 60-80% utilization
+                cpu_efficiency = 1.0
+                if cpu_utilization_projected < 40:
+                    cpu_efficiency = 0.9  # Slightly penalize over-provisioning
+                elif cpu_utilization_projected > 85:
+                    cpu_efficiency = 1.1  # Slightly penalize under-provisioning risk
+                
+                ram_efficiency = 1.0
+                if ram_utilization_projected < 50:
+                    ram_efficiency = 0.95
+                elif ram_utilization_projected > 85:
+                    ram_efficiency = 1.05
+                
+                # Apply efficiency factor
+                efficiency_factor = (cpu_efficiency + ram_efficiency) / 2
+                infrastructure_monthly *= efficiency_factor
+            
             total_monthly = infrastructure_monthly + sql_licensing_cost
             
-            if vrops_data:
-                utilization_factor = 1.0
-                if vrops_data.cpu_usage_avg < 30 and vcpus > 2:
-                    utilization_factor = 0.85
-                elif vrops_data.cpu_usage_avg > 80:
-                    utilization_factor = 1.1
-                
-                if vrops_data.memory_balloon_avg > 1:
-                    utilization_factor += 0.05
-                
-                infrastructure_monthly *= utilization_factor
-                total_monthly = infrastructure_monthly + sql_licensing_cost
-            
+            # Add some realistic variance
             variance = 1 + (hash(instance_type) % 20 - 10) / 1000
             infrastructure_monthly *= variance
             total_monthly = infrastructure_monthly + sql_licensing_cost
+            
+            # Calculate utilization metrics for this instance
+            utilization_metrics = {}
+            if vrops_data:
+                utilization_metrics = {
+                    'projected_cpu_utilization': min(100, (vrops_data.actual_cpu_cores_used_avg / vcpus) * 100),
+                    'projected_ram_utilization': min(100, (vrops_data.actual_ram_gb_used_avg / ram) * 100),
+                    'rightsizing_score': self._calculate_rightsizing_score(vrops_data, vcpus, ram),
+                    'performance_risk': self._assess_performance_risk(vrops_data, vcpus, ram)
+                }
             
             pricing_data.append(PricingData(
                 service="EC2",
@@ -766,7 +879,8 @@ class MockDataService:
                     'vcpus': vcpus, 
                     'ram': ram, 
                     'family': instance_type.split('.')[0].upper(),
-                    'network_performance': 'Up to 25 Gigabit' if vcpus >= 16 else 'Up to 10 Gigabit' if vcpus >= 4 else 'Moderate'
+                    'network_performance': 'Up to 25 Gigabit' if vcpus >= 16 else 'Up to 10 Gigabit' if vcpus >= 4 else 'Moderate',
+                    **utilization_metrics
                 },
                 reserved_pricing={
                     "1_year_all_upfront": infrastructure_hourly * 0.62,
@@ -779,7 +893,47 @@ class MockDataService:
                 total_monthly_cost=total_monthly
             ))
         
-        return sorted(pricing_data, key=lambda x: x.total_monthly_cost)
+        # Sort by total cost, but boost instances with better rightsizing scores
+        if vrops_data:
+            pricing_data.sort(key=lambda x: (
+                x.total_monthly_cost * (2 - x.specifications.get('rightsizing_score', 0.5))
+            ))
+        else:
+            pricing_data.sort(key=lambda x: x.total_monthly_cost)
+        
+        return pricing_data
+    
+    def _calculate_rightsizing_score(self, vrops_data, instance_vcpus, instance_ram):
+        """Calculate rightsizing score (0-1, where 1 is optimal)"""
+        cpu_utilization = (vrops_data.actual_cpu_cores_used_avg / instance_vcpus) * 100
+        ram_utilization = (vrops_data.actual_ram_gb_used_avg / instance_ram) * 100
+        
+        # Optimal utilization ranges
+        cpu_score = 1.0
+        if cpu_utilization < 40:
+            cpu_score = cpu_utilization / 40  # Penalize under-utilization
+        elif cpu_utilization > 80:
+            cpu_score = 0.8  # Penalize over-utilization risk
+        
+        ram_score = 1.0
+        if ram_utilization < 50:
+            ram_score = ram_utilization / 50
+        elif ram_utilization > 85:
+            ram_score = 0.7
+        
+        return (cpu_score + ram_score) / 2
+    
+    def _assess_performance_risk(self, vrops_data, instance_vcpus, instance_ram):
+        """Assess performance risk level"""
+        cpu_headroom = ((instance_vcpus - vrops_data.actual_cpu_cores_used_peak) / instance_vcpus) * 100
+        ram_headroom = ((instance_ram - vrops_data.actual_ram_gb_used_peak) / instance_ram) * 100
+        
+        if cpu_headroom < 10 or ram_headroom < 15:
+            return "High"
+        elif cpu_headroom < 20 or ram_headroom < 25:
+            return "Medium"
+        else:
+            return "Low"
 
 class PDFGeneratorService:
     """PDF generator service with proper optional import handling"""
@@ -868,15 +1022,15 @@ class PDFGeneratorService:
             # vROps Analysis
             if vrops_data:
                 story.append(Paragraph("vRealize Operations Analysis", styles['Heading1']))
+                story.append(Paragraph(f"<b>Current Infrastructure:</b> {vrops_data.current_vcpus} vCPUs, {vrops_data.current_ram_gb} GB RAM", styles['Normal']))
+                story.append(Spacer(1, 6))
                 story.append(Paragraph(f"<b>CPU Utilization:</b> {vrops_data.cpu_usage_avg:.1f}% average, {vrops_data.cpu_usage_peak:.1f}% peak", styles['Normal']))
                 story.append(Spacer(1, 6))
                 story.append(Paragraph(f"<b>Memory Utilization:</b> {vrops_data.memory_usage_avg:.1f}% average, {vrops_data.memory_usage_peak:.1f}% peak", styles['Normal']))
                 story.append(Spacer(1, 6))
-                story.append(Paragraph(f"<b>CPU Ready Time:</b> {vrops_data.cpu_ready_avg:.1f}%", styles['Normal']))
+                story.append(Paragraph(f"<b>Actual Usage:</b> {vrops_data.actual_cpu_cores_used_avg:.1f} CPU cores, {vrops_data.actual_ram_gb_used_avg:.1f} GB RAM", styles['Normal']))
                 story.append(Spacer(1, 6))
-                story.append(Paragraph(f"<b>Memory Balloon:</b> {vrops_data.memory_balloon_avg:.1f}%", styles['Normal']))
-                story.append(Spacer(1, 6))
-                story.append(Paragraph(f"<b>Disk Latency:</b> {vrops_data.disk_latency_avg:.1f}ms", styles['Normal']))
+                story.append(Paragraph(f"<b>Recommended Sizing:</b> {vrops_data.recommended_cpu_cores} vCPUs, {vrops_data.recommended_ram_gb} GB RAM", styles['Normal']))
                 story.append(Spacer(1, 20))
             
             # Pricing Analysis
@@ -976,6 +1130,12 @@ Potential Monthly Savings: ${most_expensive.total_monthly_cost - cheapest.total_
 
 VREALIZE OPERATIONS PERFORMANCE ANALYSIS
 ========================================
+Current Infrastructure:
+- vCPUs Allocated: {vrops_data.current_vcpus}
+- RAM Allocated: {vrops_data.current_ram_gb} GB
+- Storage Allocated: {vrops_data.current_storage_gb} GB
+- VM Count: {vrops_data.vm_count}
+
 Performance Metrics:
 - CPU Usage (Average): {vrops_data.cpu_usage_avg:.1f}%
 - CPU Usage (Peak): {vrops_data.cpu_usage_peak:.1f}%
@@ -984,6 +1144,18 @@ Performance Metrics:
 - CPU Ready Time: {vrops_data.cpu_ready_avg:.1f}%
 - Memory Balloon: {vrops_data.memory_balloon_avg:.1f}%
 - Disk Latency: {vrops_data.disk_latency_avg:.1f}ms
+
+Actual Resource Consumption:
+- CPU Cores Used (Avg): {vrops_data.actual_cpu_cores_used_avg:.1f}
+- CPU Cores Used (Peak): {vrops_data.actual_cpu_cores_used_peak:.1f}
+- RAM Used (Avg): {vrops_data.actual_ram_gb_used_avg:.1f} GB
+- RAM Used (Peak): {vrops_data.actual_ram_gb_used_peak:.1f} GB
+
+Rightsizing Recommendations:
+- Recommended vCPUs: {vrops_data.recommended_cpu_cores}
+- Recommended RAM: {vrops_data.recommended_ram_gb} GB
+- Sizing Efficiency Score: {vrops_data.sizing_efficiency_score:.0f}/100
+- Rightsizing Opportunity: {vrops_data.rightsizing_opportunity}
 
 Performance Assessment:
 """
@@ -1006,7 +1178,15 @@ Instance Pricing Comparison (Top 10):
 """
             for i, pricing in enumerate(pricing_data[:10], 1):
                 specs = pricing.specifications or {}
-                report_content += f"{i:2}. {pricing.instance_type:<12} | {specs.get('vcpus', 'N/A'):>2} vCPUs | {specs.get('ram', 'N/A'):>3}GB RAM | ${pricing.price_per_month:>6,.0f} infra | ${pricing.sql_licensing_cost:>6,.0f} SQL | ${pricing.total_monthly_cost:>7,.0f} total\n"
+                projected_cpu = specs.get('projected_cpu_utilization', 0)
+                projected_ram = specs.get('projected_ram_utilization', 0)
+                risk = specs.get('performance_risk', 'Unknown')
+                score = specs.get('rightsizing_score', 0) * 100
+                
+                report_content += f"{i:2}. {pricing.instance_type:<12} | {specs.get('vcpus', 'N/A'):>2} vCPUs | {specs.get('ram', 'N/A'):>3}GB RAM | ${pricing.total_monthly_cost:>7,.0f} total"
+                if projected_cpu > 0:
+                    report_content += f" | CPU: {projected_cpu:.0f}% | RAM: {projected_ram:.0f}% | Risk: {risk} | Score: {score:.0f}"
+                report_content += "\n"
         
         if recommendation and risks:
             report_content += f"""
@@ -1228,7 +1408,7 @@ class EnhancedCloudPricingOptimizer:
         st.markdown("""
         <div class="main-header">
             <h1>AWS Cloud Migration Optimizer</h1>
-            <p>Enterprise AWS pricing analysis with vRealize Operations integration</p>
+            <p>Enterprise AWS pricing analysis with vRealize Operations integration and intelligent rightsizing</p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -1311,7 +1491,7 @@ class EnhancedCloudPricingOptimizer:
         st.markdown("<br>", unsafe_allow_html=True)
     
     def render_sidebar(self):
-        """Render sidebar configuration"""
+        """Render enhanced sidebar configuration with on-premise infrastructure"""
         with st.sidebar:
             st.markdown('<div class="section-header">⚙️ Configuration</div>', unsafe_allow_html=True)
             
@@ -1324,9 +1504,26 @@ class EnhancedCloudPricingOptimizer:
                 "Production", "Staging", "Development", "Testing"
             ])
             
-            st.markdown('<div class="section-header">📊 vROps Configuration</div>', unsafe_allow_html=True)
+            st.markdown('<div class="section-header">🖥️ Current On-Premise Infrastructure</div>', unsafe_allow_html=True)
             
-            with st.expander("🔍 vROps Data Input", expanded=False):
+            with st.expander("⚙️ Current VM Configuration", expanded=True):
+                st.markdown("**📊 Current Resource Allocation**")
+                col1, col2 = st.columns(2)
+                with col1:
+                    current_vcpus = st.number_input("Current vCPUs", 1, 128, 8, step=1, 
+                                                   help="Number of virtual CPUs currently allocated")
+                    current_ram_gb = st.number_input("Current RAM (GB)", 1, 1024, 32, step=1,
+                                                    help="Total RAM currently allocated to the VM")
+                with col2:
+                    current_storage_gb = st.number_input("Current Storage (GB)", 1, 10000, 500, step=10,
+                                                       help="Total storage currently allocated")
+                    vm_count = st.number_input("Number of VMs", 1, 100, 1, step=1,
+                                              help="Number of VMs with similar configuration")
+            
+            st.markdown('<div class="section-header">📊 vROps Performance Data</div>', unsafe_allow_html=True)
+            
+            with st.expander("🔍 vROps Metrics Input", expanded=False):
+                st.markdown("**📈 Performance Utilization Metrics**")
                 col1, col2 = st.columns(2)
                 with col1:
                     cpu_avg = st.number_input("CPU Usage Avg (%)", 0.0, 100.0, 45.0, step=1.0)
@@ -1339,19 +1536,43 @@ class EnhancedCloudPricingOptimizer:
                     disk_latency = st.number_input("Disk Latency (ms)", 0.0, 200.0, 15.0, step=1.0)
                     collection_days = st.number_input("Collection Days", 1, 365, 30, step=1)
                 
-                st.session_state.vrops_metrics = VRopsMetrics(
-                    cpu_usage_avg=cpu_avg,
-                    cpu_usage_peak=cpu_peak,
-                    cpu_usage_95th=(cpu_avg + cpu_peak) / 2,
-                    cpu_ready_avg=cpu_ready,
-                    memory_usage_avg=mem_avg,
-                    memory_usage_peak=mem_peak,
-                    memory_usage_95th=(mem_avg + mem_peak) / 2,
-                    memory_balloon_avg=mem_balloon,
-                    disk_latency_avg=disk_latency,
-                    collection_period_days=collection_days,
-                    data_completeness=95.0
-                )
+                # Calculate actual usage based on allocated resources
+                actual_cpu_cores_used = (current_vcpus * cpu_avg / 100)
+                actual_ram_gb_used = (current_ram_gb * mem_avg / 100)
+                
+                st.markdown("**🧮 Calculated Actual Usage**")
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Actual CPU Cores Used (Avg)", f"{actual_cpu_cores_used:.1f}", 
+                             help=f"Based on {cpu_avg}% of {current_vcpus} vCPUs")
+                    st.metric("Actual RAM Used (Avg)", f"{actual_ram_gb_used:.1f} GB", 
+                             help=f"Based on {mem_avg}% of {current_ram_gb} GB")
+                with col2:
+                    peak_cpu_used = (current_vcpus * cpu_peak / 100)
+                    peak_ram_used = (current_ram_gb * mem_peak / 100)
+                    st.metric("Actual CPU Cores Used (Peak)", f"{peak_cpu_used:.1f}", 
+                             help=f"Based on {cpu_peak}% of {current_vcpus} vCPUs")
+                    st.metric("Actual RAM Used (Peak)", f"{peak_ram_used:.1f} GB", 
+                             help=f"Based on {mem_peak}% of {current_ram_gb} GB")
+            
+            # Update the vROps metrics object creation
+            st.session_state.vrops_metrics = VRopsMetrics(
+                current_vcpus=current_vcpus,
+                current_ram_gb=current_ram_gb,
+                current_storage_gb=current_storage_gb,
+                vm_count=vm_count,
+                cpu_usage_avg=cpu_avg,
+                cpu_usage_peak=cpu_peak,
+                cpu_usage_95th=(cpu_avg + cpu_peak) / 2,
+                cpu_ready_avg=cpu_ready,
+                memory_usage_avg=mem_avg,
+                memory_usage_peak=mem_peak,
+                memory_usage_95th=(mem_avg + mem_peak) / 2,
+                memory_balloon_avg=mem_balloon,
+                disk_latency_avg=disk_latency,
+                collection_period_days=collection_days,
+                data_completeness=95.0
+            )
             
             st.markdown('<div class="section-header">🗃️ SQL Server Configuration</div>', unsafe_allow_html=True)
             
@@ -1375,15 +1596,22 @@ class EnhancedCloudPricingOptimizer:
                     current_annual_license_cost=30000.0
                 )
             
+            # Update the main configuration to include actual sizing
             st.session_state.config = {
                 'region': region,
                 'workload_type': workload_type,
-                'cpu_cores': 8,
-                'ram_gb': 32
+                'cpu_cores': current_vcpus,  # Now uses actual input instead of hardcoded
+                'ram_gb': current_ram_gb,    # Now uses actual input instead of hardcoded
+                'storage_gb': current_storage_gb,
+                'vm_count': vm_count,
+                'actual_cpu_used_avg': actual_cpu_cores_used,
+                'actual_ram_used_avg': actual_ram_gb_used,
+                'actual_cpu_used_peak': peak_cpu_used,
+                'actual_ram_used_peak': peak_ram_used
             }
     
     def render_vrops_metrics(self):
-        """Render vROps metrics analysis section"""
+        """Render vROps metrics analysis section with enhanced actual usage display"""
         st.markdown('<div class="section-header">📊 vRealize Operations Metrics Analysis</div>', unsafe_allow_html=True)
         
         if not st.session_state.vrops_metrics:
@@ -1392,6 +1620,48 @@ class EnhancedCloudPricingOptimizer:
         
         vrops_metrics = st.session_state.vrops_metrics
         
+        # Current Infrastructure Overview
+        st.markdown("**🖥️ Current Infrastructure**")
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.markdown(f"""
+            <div class="metric-card">
+                <h3>vCPUs Allocated</h3>
+                <h2>{vrops_metrics.current_vcpus}</h2>
+                <p>Virtual CPU cores</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown(f"""
+            <div class="metric-card">
+                <h3>RAM Allocated</h3>
+                <h2>{vrops_metrics.current_ram_gb:.0f} GB</h2>
+                <p>Total memory</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col3:
+            st.markdown(f"""
+            <div class="metric-card">
+                <h3>Storage Allocated</h3>
+                <h2>{vrops_metrics.current_storage_gb:.0f} GB</h2>
+                <p>Total storage</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col4:
+            st.markdown(f"""
+            <div class="metric-card">
+                <h3>VM Count</h3>
+                <h2>{vrops_metrics.vm_count}</h2>
+                <p>Virtual machines</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # Performance Utilization
+        st.markdown("**📈 Performance Utilization**")
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
@@ -1432,11 +1702,94 @@ class EnhancedCloudPricingOptimizer:
             </div>
             """, unsafe_allow_html=True)
         
+        # Actual Resource Consumption
+        st.markdown("**🧮 Actual Resource Consumption**")
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.markdown(f"""
+            <div class="metric-card">
+                <h3>CPU Cores Used (Avg)</h3>
+                <h2>{vrops_metrics.actual_cpu_cores_used_avg:.1f}</h2>
+                <p>of {vrops_metrics.current_vcpus} allocated</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown(f"""
+            <div class="metric-card">
+                <h3>RAM Used (Avg)</h3>
+                <h2>{vrops_metrics.actual_ram_gb_used_avg:.1f} GB</h2>
+                <p>of {vrops_metrics.current_ram_gb:.0f} GB allocated</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col3:
+            st.markdown(f"""
+            <div class="metric-card">
+                <h3>CPU Cores Used (Peak)</h3>
+                <h2>{vrops_metrics.actual_cpu_cores_used_peak:.1f}</h2>
+                <p>Peak usage</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col4:
+            st.markdown(f"""
+            <div class="metric-card">
+                <h3>RAM Used (Peak)</h3>
+                <h2>{vrops_metrics.actual_ram_gb_used_peak:.1f} GB</h2>
+                <p>Peak usage</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # Rightsizing Recommendations
+        st.markdown("**🎯 Rightsizing Recommendations**")
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            rec_cpu_color = "#28a745" if vrops_metrics.recommended_cpu_cores < vrops_metrics.current_vcpus else "#ffc107"
+            st.markdown(f"""
+            <div class="metric-card">
+                <h3>Recommended vCPUs</h3>
+                <h2 style="color: {rec_cpu_color};">{vrops_metrics.recommended_cpu_cores}</h2>
+                <p>With 20% headroom</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            rec_ram_color = "#28a745" if vrops_metrics.recommended_ram_gb < vrops_metrics.current_ram_gb else "#ffc107"
+            st.markdown(f"""
+            <div class="metric-card">
+                <h3>Recommended RAM</h3>
+                <h2 style="color: {rec_ram_color};">{vrops_metrics.recommended_ram_gb} GB</h2>
+                <p>With 25% headroom</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col3:
+            score_color = "#28a745" if vrops_metrics.sizing_efficiency_score > 70 else "#ffc107" if vrops_metrics.sizing_efficiency_score > 40 else "#dc3545"
+            st.markdown(f"""
+            <div class="metric-card">
+                <h3>Efficiency Score</h3>
+                <h2 style="color: {score_color};">{vrops_metrics.sizing_efficiency_score:.0f}/100</h2>
+                <p>Utilization efficiency</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
         st.markdown("**🔍 Performance Insights**")
         
+        # Enhanced insights with actual usage
         insights = []
-        if vrops_metrics.cpu_usage_avg < 40:
-            insights.append("💡 CPU utilization is low - consider right-sizing to reduce costs")
+        insights.append(f"💡 {vrops_metrics.rightsizing_opportunity}")
+        
+        if vrops_metrics.actual_cpu_cores_used_avg < vrops_metrics.current_vcpus * 0.5:
+            cpu_waste = vrops_metrics.current_vcpus - vrops_metrics.actual_cpu_cores_used_avg
+            insights.append(f"⚡ CPU over-provisioning: {cpu_waste:.1f} cores unused on average")
+        
+        if vrops_metrics.actual_ram_gb_used_avg < vrops_metrics.current_ram_gb * 0.6:
+            ram_waste = vrops_metrics.current_ram_gb - vrops_metrics.actual_ram_gb_used_avg
+            insights.append(f"💾 Memory over-provisioning: {ram_waste:.1f} GB unused on average")
+        
         if vrops_metrics.cpu_ready_avg > 5:
             insights.append("⚠️ High CPU ready time indicates CPU contention")
         if vrops_metrics.memory_balloon_avg > 1:
@@ -1457,7 +1810,7 @@ class EnhancedCloudPricingOptimizer:
         self.render_vrops_charts(vrops_metrics)
     
     def render_vrops_charts(self, vrops_metrics):
-        """Render vROps performance charts"""
+        """Render vROps performance charts with actual usage overlay"""
         col1, col2 = st.columns(2)
         
         with col1:
@@ -1501,25 +1854,60 @@ class EnhancedCloudPricingOptimizer:
                         'value': 95}}))
             fig_mem.update_layout(height=300)
             st.plotly_chart(fig_mem, use_container_width=True)
+        
+        # Actual vs Allocated Resources Chart
+        st.markdown("**📊 Resource Allocation vs Usage**")
+        
+        fig_resources = go.Figure()
+        
+        categories = ['CPU Cores (Avg)', 'CPU Cores (Peak)', 'RAM GB (Avg)', 'RAM GB (Peak)']
+        allocated = [vrops_metrics.current_vcpus, vrops_metrics.current_vcpus, 
+                    vrops_metrics.current_ram_gb, vrops_metrics.current_ram_gb]
+        used = [vrops_metrics.actual_cpu_cores_used_avg, vrops_metrics.actual_cpu_cores_used_peak,
+               vrops_metrics.actual_ram_gb_used_avg, vrops_metrics.actual_ram_gb_used_peak]
+        
+        fig_resources.add_trace(go.Bar(
+            name='Allocated',
+            x=categories,
+            y=allocated,
+            marker_color='lightblue',
+            opacity=0.7
+        ))
+        
+        fig_resources.add_trace(go.Bar(
+            name='Used',
+            x=categories,
+            y=used,
+            marker_color='darkblue'
+        ))
+        
+        fig_resources.update_layout(
+            title='Current Allocation vs Actual Usage',
+            yaxis_title='Resources',
+            barmode='overlay',
+            height=400
+        )
+        
+        st.plotly_chart(fig_resources, use_container_width=True)
     
     def render_pricing_analysis(self):
         """Render pricing analysis section"""
-        st.markdown('<div class="section-header">💰 AWS Pricing Analysis</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-header">💰 AWS Pricing Analysis with Rightsizing</div>', unsafe_allow_html=True)
         
         if not hasattr(st.session_state, 'config'):
             st.info("⚠️ Please configure workload parameters in the sidebar.")
             return
         
-        st.write("💡 Analyze AWS pricing options based on your workload requirements and vROps metrics.")
+        st.write("💡 Analyze AWS pricing options based on your actual workload requirements and vROps metrics.")
         
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
-            if st.button("🔍 Analyze Pricing", type="primary", use_container_width=True):
-                with st.spinner("Fetching AWS pricing data..."):
+            if st.button("🔍 Analyze Pricing with Rightsizing", type="primary", use_container_width=True):
+                with st.spinner("Fetching AWS pricing data and calculating rightsizing..."):
                     self.fetch_and_display_pricing()
 
     def fetch_and_display_pricing(self):
-        """Fetch and display pricing data with enhanced error handling"""
+        """Fetch and display pricing data with enhanced rightsizing analysis"""
         config = st.session_state.config
         vrops_data = st.session_state.vrops_metrics
         
@@ -1545,7 +1933,7 @@ class EnhancedCloudPricingOptimizer:
             if not pricing_data or st.session_state.demo_mode:
                 pricing_data = self.mock_data.get_enhanced_sample_pricing_data(config['region'], vrops_data)
                 if st.session_state.demo_mode:
-                    st.success("📊 Enhanced demo pricing data loaded with vROps optimizations")
+                    st.success("📊 Enhanced demo pricing data loaded with rightsizing analysis")
                 else:
                     st.warning("⚠️ Using demo data - AWS API data not available")
             
@@ -1553,7 +1941,7 @@ class EnhancedCloudPricingOptimizer:
                 st.session_state.pricing_cache[config['region']] = pricing_data
                 st.session_state.latest_pricing = pricing_data
                 self.display_pricing_results(pricing_data)
-                st.success("✅ Pricing analysis complete!")
+                st.success("✅ Pricing analysis with rightsizing complete!")
             else:
                 st.error("❌ No pricing data available.")
                 
@@ -1562,38 +1950,209 @@ class EnhancedCloudPricingOptimizer:
             logger.error(f"Pricing fetch error: {e}")
 
     def display_pricing_results(self, pricing_data: List):
-        """Display pricing analysis results with enhanced formatting"""
-        st.markdown("**💰 Pricing Analysis Results**")
+        """Display pricing analysis results with rightsizing analysis"""
         
+        # Show current vs recommended sizing first if vROps data available
+        if st.session_state.vrops_metrics:
+            vrops = st.session_state.vrops_metrics
+            
+            st.markdown("**🔍 Rightsizing Analysis**")
+            
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <h3>Current vCPUs</h3>
+                    <h2>{vrops.current_vcpus}</h2>
+                    <p>Allocated cores</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col2:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <h3>Current RAM</h3>
+                    <h2>{vrops.current_ram_gb:.0f} GB</h2>
+                    <p>Allocated memory</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col3:
+                color = "#28a745" if vrops.actual_cpu_cores_used_avg < vrops.current_vcpus * 0.8 else "#ffc107"
+                st.markdown(f"""
+                <div class="metric-card">
+                    <h3>Actual CPU Used</h3>
+                    <h2 style="color: {color};">{vrops.actual_cpu_cores_used_avg:.1f}</h2>
+                    <p>Avg cores ({vrops.cpu_usage_avg:.1f}%)</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col4:
+                color = "#28a745" if vrops.actual_ram_gb_used_avg < vrops.current_ram_gb * 0.8 else "#ffc107"
+                st.markdown(f"""
+                <div class="metric-card">
+                    <h3>Actual RAM Used</h3>
+                    <h2 style="color: {color};">{vrops.actual_ram_gb_used_avg:.1f} GB</h2>
+                    <p>Avg memory ({vrops.memory_usage_avg:.1f}%)</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            # Rightsizing recommendation
+            st.markdown(f"""
+            <div class="optimization-insight">
+                <strong>💡 Rightsizing Opportunity:</strong> {vrops.rightsizing_opportunity}<br>
+                <strong>📊 Efficiency Score:</strong> {vrops.sizing_efficiency_score:.0f}/100<br>
+                <strong>🎯 Recommended Sizing:</strong> {vrops.recommended_cpu_cores} vCPUs, {vrops.recommended_ram_gb} GB RAM
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.markdown("**💰 AWS Instance Recommendations**")
+        
+        # Create enhanced table with rightsizing information
         table_data = []
-        for pricing in pricing_data[:10]:
+        for i, pricing in enumerate(pricing_data[:10]):
             specs = pricing.specifications or {}
             
+            # Calculate savings compared to most expensive option
             max_cost = max(p.total_monthly_cost for p in pricing_data[:10])
             savings = max_cost - pricing.total_monthly_cost
             savings_pct = (savings / max_cost * 100) if max_cost > 0 else 0
             
+            # Add rightsizing metrics if available
+            rightsizing_info = ""
+            if 'projected_cpu_utilization' in specs:
+                cpu_util = specs['projected_cpu_utilization']
+                ram_util = specs['projected_ram_utilization']
+                risk = specs.get('performance_risk', 'Unknown')
+                score = specs.get('rightsizing_score', 0) * 100
+                
+                rightsizing_info = f"CPU: {cpu_util:.0f}%, RAM: {ram_util:.0f}%, Risk: {risk}, Score: {score:.0f}"
+            
             table_data.append({
+                'Rank': f"#{i+1}",
                 'Instance Type': pricing.instance_type,
                 'vCPUs': specs.get('vcpus', 'N/A'),
                 'RAM (GB)': specs.get('ram', 'N/A'),
                 'Infrastructure ($/month)': f"${pricing.price_per_month:,.0f}",
                 'SQL Licensing ($/month)': f"${pricing.sql_licensing_cost:,.0f}",
                 'Total Cost ($/month)': f"${pricing.total_monthly_cost:,.0f}",
-                'Savings vs Max': f"${savings:,.0f} ({savings_pct:.1f}%)",
+                'Monthly Savings': f"${savings:,.0f} ({savings_pct:.1f}%)",
+                'Rightsizing Analysis': rightsizing_info,
                 'Family': specs.get('family', 'Unknown')
             })
         
         df = pd.DataFrame(table_data)
         
-        st.dataframe(
-            df, 
-            use_container_width=True,
-            hide_index=True
-        )
+        # Style the dataframe based on performance risk if available
+        def highlight_risk(row):
+            if 'High' in str(row['Rightsizing Analysis']):
+                return ['background-color: #fff3cd'] * len(row)  # Light yellow
+            elif 'Low' in str(row['Rightsizing Analysis']):
+                return ['background-color: #d4edda'] * len(row)  # Light green
+            else:
+                return [''] * len(row)
+        
+        if pricing_data and 'projected_cpu_utilization' in pricing_data[0].specifications:
+            styled_df = df.style.apply(highlight_risk, axis=1)
+            st.dataframe(styled_df, use_container_width=True, hide_index=True)
+        else:
+            st.dataframe(df, use_container_width=True, hide_index=True)
+        
+        # Show best match recommendation
+        if pricing_data and st.session_state.vrops_metrics:
+            best_match = pricing_data[0]  # Already sorted by optimal rightsizing
+            specs = best_match.specifications or {}
+            
+            st.markdown(f"""
+            <div class="ai-recommendation">
+                <h3>🎯 Optimal Instance Recommendation</h3>
+                <p><strong>Instance:</strong> {best_match.instance_type}</p>
+                <p><strong>Sizing:</strong> {specs.get('vcpus', 'N/A')} vCPUs, {specs.get('ram', 'N/A')} GB RAM</p>
+                <p><strong>Monthly Cost:</strong> ${best_match.total_monthly_cost:,.0f}</p>
+                <p><strong>Annual Cost:</strong> ${best_match.total_monthly_cost * 12:,.0f}</p>
+                <p><strong>Projected Utilization:</strong> CPU {specs.get('projected_cpu_utilization', 0):.0f}%, RAM {specs.get('projected_ram_utilization', 0):.0f}%</p>
+                <p><strong>Performance Risk:</strong> {specs.get('performance_risk', 'Unknown')}</p>
+            </div>
+            """, unsafe_allow_html=True)
         
         if len(pricing_data) > 0:
             self.render_pricing_chart(pricing_data[:8])
+            
+            # Add rightsizing efficiency chart if vROps data available
+            if st.session_state.vrops_metrics and pricing_data and 'rightsizing_score' in pricing_data[0].specifications:
+                self.render_rightsizing_chart(pricing_data[:8])
+
+    def render_rightsizing_chart(self, pricing_data: List):
+        """Render rightsizing efficiency chart"""
+        st.markdown("**📊 Rightsizing Efficiency Analysis**")
+        
+        instance_types = [p.instance_type for p in pricing_data]
+        rightsizing_scores = [p.specifications.get('rightsizing_score', 0) * 100 for p in pricing_data]
+        cpu_utilizations = [p.specifications.get('projected_cpu_utilization', 0) for p in pricing_data]
+        ram_utilizations = [p.specifications.get('projected_ram_utilization', 0) for p in pricing_data]
+        total_costs = [p.total_monthly_cost for p in pricing_data]
+        
+        fig = go.Figure()
+        
+        # Create bubble chart where bubble size = cost, color = rightsizing score
+        fig.add_trace(go.Scatter(
+            x=cpu_utilizations,
+            y=ram_utilizations,
+            mode='markers+text',
+            text=instance_types,
+            textposition='top center',
+            marker=dict(
+                size=[cost / 100 for cost in total_costs],  # Scale for visibility
+                color=rightsizing_scores,
+                colorscale='RdYlGn',
+                showscale=True,
+                colorbar=dict(title="Rightsizing Score"),
+                line=dict(width=2, color='white')
+            ),
+            hovertemplate='<b>%{text}</b><br>' +
+                         'CPU Utilization: %{x:.1f}%<br>' +
+                         'RAM Utilization: %{y:.1f}%<br>' +
+                         'Rightsizing Score: %{marker.color:.0f}<br>' +
+                         '<extra></extra>'
+        ))
+        
+        # Add optimal zone rectangle
+        fig.add_shape(
+            type="rect",
+            x0=50, y0=60, x1=80, y1=85,
+            fillcolor="rgba(0,255,0,0.1)",
+            line=dict(color="green", width=2, dash="dash"),
+            layer="below"
+        )
+        
+        fig.add_annotation(
+            x=65, y=72.5,
+            text="Optimal Zone",
+            showarrow=False,
+            font=dict(color="green", size=12),
+            bgcolor="rgba(255,255,255,0.8)"
+        )
+        
+        fig.update_layout(
+            title='Instance Rightsizing Analysis (Bubble size = Cost)',
+            xaxis_title='Projected CPU Utilization (%)',
+            yaxis_title='Projected RAM Utilization (%)',
+            height=500,
+            xaxis=dict(range=[0, 100]),
+            yaxis=dict(range=[0, 100])
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Add interpretation guide
+        st.markdown("""
+        **📋 Interpretation Guide:**
+        - **Green Zone (50-80% CPU, 60-85% RAM):** Optimal utilization range
+        - **Bubble Size:** Larger = Higher monthly cost
+        - **Color:** Green = Better rightsizing score, Red = Poor rightsizing
+        - **Target:** Choose instances in/near green zone with good scores
+        """)
 
     def render_pricing_chart(self, pricing_data: List):
         """Render enhanced pricing comparison chart"""
@@ -2341,6 +2900,19 @@ POTENTIAL MONTHLY SAVINGS: ${most_expensive.total_monthly_cost - cheapest.total_
 ANNUAL SAVINGS POTENTIAL: ${(most_expensive.total_monthly_cost - cheapest.total_monthly_cost) * 12:,.0f}
 """
             
+            if st.session_state.vrops_metrics:
+                vrops = st.session_state.vrops_metrics
+                summary += f"""
+
+RIGHTSIZING ANALYSIS
+===================
+CURRENT INFRASTRUCTURE: {vrops.current_vcpus} vCPUs, {vrops.current_ram_gb} GB RAM
+ACTUAL USAGE (AVG): {vrops.actual_cpu_cores_used_avg:.1f} CPU cores, {vrops.actual_ram_gb_used_avg:.1f} GB RAM
+RECOMMENDED SIZING: {vrops.recommended_cpu_cores} vCPUs, {vrops.recommended_ram_gb} GB RAM
+EFFICIENCY SCORE: {vrops.sizing_efficiency_score:.0f}/100
+RIGHTSIZING OPPORTUNITY: {vrops.rightsizing_opportunity}
+"""
+            
             summary += f"""
 
 ANALYSIS CONFIGURATION
@@ -2462,15 +3034,34 @@ Workload Type: {st.session_state.config.get('workload_type', 'Not specified')}
         
         if st.session_state.vrops_metrics:
             vrops = st.session_state.vrops_metrics
-            summary += f"""VROPS PERFORMANCE METRICS
-=========================
-CPU Usage (Avg): {vrops.cpu_usage_avg:.1f}%
-CPU Usage (Peak): {vrops.cpu_usage_peak:.1f}%
-Memory Usage (Avg): {vrops.memory_usage_avg:.1f}%
-Memory Usage (Peak): {vrops.memory_usage_peak:.1f}%
-CPU Ready Time: {vrops.cpu_ready_avg:.1f}%
-Memory Balloon: {vrops.memory_balloon_avg:.1f}%
-Disk Latency: {vrops.disk_latency_avg:.1f}ms
+            summary += f"""CURRENT INFRASTRUCTURE & VROPS METRICS
+======================================
+Current Infrastructure:
+- vCPUs Allocated: {vrops.current_vcpus}
+- RAM Allocated: {vrops.current_ram_gb} GB
+- Storage Allocated: {vrops.current_storage_gb} GB
+- VM Count: {vrops.vm_count}
+
+Performance Utilization:
+- CPU Usage (Avg): {vrops.cpu_usage_avg:.1f}%
+- CPU Usage (Peak): {vrops.cpu_usage_peak:.1f}%
+- Memory Usage (Avg): {vrops.memory_usage_avg:.1f}%
+- Memory Usage (Peak): {vrops.memory_usage_peak:.1f}%
+- CPU Ready Time: {vrops.cpu_ready_avg:.1f}%
+- Memory Balloon: {vrops.memory_balloon_avg:.1f}%
+- Disk Latency: {vrops.disk_latency_avg:.1f}ms
+
+Actual Resource Consumption:
+- CPU Cores Used (Avg): {vrops.actual_cpu_cores_used_avg:.1f}
+- CPU Cores Used (Peak): {vrops.actual_cpu_cores_used_peak:.1f}
+- RAM Used (Avg): {vrops.actual_ram_gb_used_avg:.1f} GB
+- RAM Used (Peak): {vrops.actual_ram_gb_used_peak:.1f} GB
+
+Rightsizing Recommendations:
+- Recommended vCPUs: {vrops.recommended_cpu_cores}
+- Recommended RAM: {vrops.recommended_ram_gb} GB
+- Efficiency Score: {vrops.sizing_efficiency_score:.0f}/100
+- Rightsizing Opportunity: {vrops.rightsizing_opportunity}
 
 """
         
@@ -2486,7 +3077,14 @@ TOP 5 INSTANCE OPTIONS:
 """
             for i, p in enumerate(st.session_state.latest_pricing[:5], 1):
                 specs = p.specifications or {}
-                summary += f"{i}. {p.instance_type}: ${p.total_monthly_cost:,.0f}/month ({specs.get('vcpus', 'N/A')} vCPUs, {specs.get('ram', 'N/A')}GB RAM)\n"
+                proj_cpu = specs.get('projected_cpu_utilization', 0)
+                proj_ram = specs.get('projected_ram_utilization', 0)
+                risk = specs.get('performance_risk', 'Unknown')
+                
+                summary += f"{i}. {p.instance_type}: ${p.total_monthly_cost:,.0f}/month ({specs.get('vcpus', 'N/A')} vCPUs, {specs.get('ram', 'N/A')}GB RAM)"
+                if proj_cpu > 0:
+                    summary += f" | Projected: CPU {proj_cpu:.0f}%, RAM {proj_ram:.0f}%, Risk: {risk}"
+                summary += "\n"
         
         if st.session_state.comprehensive_analysis and st.session_state.comprehensive_analysis.get('recommendation'):
             rec = st.session_state.comprehensive_analysis['recommendation']
@@ -2497,6 +3095,19 @@ Primary Recommendation: {rec.recommendation}
 Confidence Score: {rec.confidence_score:.0f}%
 Expected Annual Savings: ${rec.expected_savings:,.0f}
 Cost Impact: {rec.cost_impact}
+"""
+        
+        if st.session_state.sql_config:
+            sql = st.session_state.sql_config
+            summary += f"""
+SQL SERVER CONFIGURATION
+========================
+Edition: {sql.current_edition}
+Licensing Model: {sql.current_licensing_model}
+Licensed Cores: {sql.current_cores_licensed}
+Concurrent Users: {sql.concurrent_users}
+Software Assurance: {'Yes' if sql.has_software_assurance else 'No'}
+Azure Hybrid Benefit Eligible: {'Yes' if sql.eligible_for_ahb else 'No'}
 """
         
         return summary
@@ -2534,6 +3145,10 @@ Cost Impact: {rec.cost_impact}
                 'Total Monthly Cost': pricing_obj.total_monthly_cost,
                 'Cost per vCPU': cost_per_vcpu,
                 'Cost per GB RAM': cost_per_gb_ram,
+                'Projected CPU Utilization': specs.get('projected_cpu_utilization', 'N/A'),
+                'Projected RAM Utilization': specs.get('projected_ram_utilization', 'N/A'),
+                'Performance Risk': specs.get('performance_risk', 'N/A'),
+                'Rightsizing Score': specs.get('rightsizing_score', 'N/A'),
                 'Spot Price Hourly': pricing_obj.spot_pricing,
                 'Reserved 1Y All Upfront': pricing_obj.reserved_pricing.get('1_year_all_upfront', 'N/A') if pricing_obj.reserved_pricing else 'N/A',
                 'Reserved 3Y All Upfront': pricing_obj.reserved_pricing.get('3_year_all_upfront', 'N/A') if pricing_obj.reserved_pricing else 'N/A',
@@ -2569,8 +3184,8 @@ def main():
         st.markdown("---")
         st.markdown(f"""
         <div style="text-align: center; color: #6c757d; font-size: 0.9rem; padding: 1rem;">
-            <strong>AWS Cloud Migration Optimizer</strong> • Professional Enterprise Edition<br>
-            <small>Real-time pricing analysis • AI-powered recommendations • Comprehensive reporting</small>
+            <strong>AWS Cloud Migration Optimizer</strong> • Professional Enterprise Edition with Intelligent Rightsizing<br>
+            <small>Real-time pricing analysis • vROps integration • AI-powered recommendations • Comprehensive reporting</small>
         </div>
         """, unsafe_allow_html=True)
         
